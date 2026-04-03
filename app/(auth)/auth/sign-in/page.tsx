@@ -30,7 +30,7 @@ const SignInFormClient = () => {
           type="button"
           variant={"outline"}
           className="w-full"
-          onClick={() => signIn("google")}
+          onClick={() => signIn("google", { callbackUrl: "/home" })}
         >
           <Home className="mr-2 h-4 w-4" />
           <span>Sign in with google</span>
@@ -39,7 +39,7 @@ const SignInFormClient = () => {
           type="button"
           variant={"outline"}
           className="w-full"
-          onClick={() => signIn("github")}
+          onClick={() => signIn("github", { callbackUrl: "/home" })}
         >
           <Home className="mr-2 h-4 w-4" />
           <span>Sign in with github</span>
