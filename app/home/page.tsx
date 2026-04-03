@@ -5,7 +5,10 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="z-20 flex flex-col md:flex-row items-center justify-between min-h-[calc(100vh-80px)] py-10 px-6 md:px-12 xl:px-24">
+    <div
+      id="home"
+      className="z-20 flex min-h-[calc(100vh-80px)] flex-col items-center justify-between px-6 py-10 md:flex-row md:px-12 xl:px-24"
+    >
       <div className="flex-1 flex flex-col justify-center items-start text-left max-w-2xl">
         <h1 className="text-5xl md:text-7xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-blue-700 to-blue-900 dark:from-blue-400 dark:via-blue-500 dark:to-blue-600 tracking-tight leading-[1.2] mb-6">
           Code With Intelligence and Seamless Collaboration

@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,16 +9,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Home } from "lucide-react";
+import { ArrowLeft, Home } from "lucide-react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 
-const SignInFormClient = () => {
+export default function SignInPage() {
   return (
     <Card className="w-full max-w-md">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">
-          Sign In
-        </CardTitle>
+      <CardHeader className="space-y-2">
+        <Button asChild variant="ghost" size="sm" className="w-fit px-0">
+          <Link href="/home#home">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to home
+          </Link>
+        </Button>
+        <CardTitle className="text-2xl font-bold text-center">Sign In</CardTitle>
         <CardDescription className="text-center">
           Choose your preferred sign-in method
         </CardDescription>
@@ -28,26 +32,26 @@ const SignInFormClient = () => {
       <CardContent className="grid gap-4">
         <Button
           type="button"
-          variant={"outline"}
+          variant="outline"
           className="w-full"
-          onClick={() => signIn("google", { callbackUrl: "/home" })}
+          onClick={() => signIn("google", { callbackUrl: "/home#home" })}
         >
           <Home className="mr-2 h-4 w-4" />
-          <span>Sign in with google</span>
+          <span>Sign in with Google</span>
         </Button>
         <Button
           type="button"
-          variant={"outline"}
+          variant="outline"
           className="w-full"
-          onClick={() => signIn("github", { callbackUrl: "/home" })}
+          onClick={() => signIn("github", { callbackUrl: "/home#home" })}
         >
           <Home className="mr-2 h-4 w-4" />
-          <span>Sign in with github</span>
+          <span>Sign in with GitHub</span>
         </Button>
       </CardContent>
 
       <CardFooter>
-        <p className="text-sm text-center text-gray-500 dark:text-gray-400 w-full">
+        <p className="w-full text-center text-sm text-gray-500 dark:text-gray-400">
           By signing in, you agree to our{" "}
           <a href="#" className="underline hover:text-primary">
             Terms of Service
@@ -61,6 +65,4 @@ const SignInFormClient = () => {
       </CardFooter>
     </Card>
   );
-};
-
-export default SignInFormClient;
+}
