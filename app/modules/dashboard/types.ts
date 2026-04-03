@@ -24,6 +24,15 @@ export type Project = {
   user: ProjectUser;
 };
 
+export type DashboardProject = {
+  id: string;
+  name: string;
+  description: string;
+  techStack: string;
+  updatedAt: string;
+  isStarred: boolean;
+};
+
 export type SidebarProject = {
   id: string;
   name: string;

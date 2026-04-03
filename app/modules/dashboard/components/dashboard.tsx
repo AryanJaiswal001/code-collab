@@ -5,98 +5,91 @@ import { toast } from "sonner";
 import AddNewButton from "./add-new";
 import EmptyState from "./empty-state";
 import ProjectTable from "./project-table";
-import type { Project } from "../types";
+import type { DashboardProject, Project, TemplateKind } from "../types";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface DashboardProps {
   projects: Project[] | null;
   initialError?: string | null;
 }
 
+const templateLabels: Record<TemplateKind, string> = {
+  NEXTJS: "Next.js",
+  REACT: "React",
+  EXPRESS: "Express",
+  VUE: "Vue",
+  HONO: "Hono",
+  ANGULAR: "Angular",
+};
+
+const toDashboardProject = (project: Project): DashboardProject => ({
+  id: project.id,
+  name: project.title,
+  description: project.description?.trim() || "No description",
+  techStack: templateLabels[project.template],
+  updatedAt: project.updatedAt,
+  isStarred: project.Starmark[0]?.isMarked ?? false,
+});
+
 const Dashboard = ({
   projects: initialProjects,
   initialError,
 }: DashboardProps) => {
-  const [projects, setProjects] = useState<Project[]>(initialProjects ?? []);
-  const [error, setError] = useState<string | null>(initialError ?? null);
+  const [projects, setProjects] = useState<DashboardProject[]>(
+    () => initialProjects?.map(toDashboardProject) ?? []
+  );
+  const error = initialError ?? null;
 
   const hasProjects = projects.length > 0;
 
   const handleCreateProject = async (project: Project) => {
-    setProjects((prev) => [project, ...prev]);
+    setProjects((prev) => [toDashboardProject(project), ...prev]);
     toast.success("Project created successfully");
   };
 
-  const handleDeleteProject = async (id: string) => {
-    setError(null);
+  const handleRenameProject = (projectId: string) => {
+    const currentProject = projects.find((project) => project.id === projectId);
+    if (!currentProject) return;
 
-    try {
-      setProjects((prev) => prev.filter((project) => project.id !== id));
-      toast.success("Project deleted successfully");
-    } catch (fetchError) {
-      setError("Failed to delete project. Please try again.");
-      toast.error("Failed to delete project");
-      throw fetchError;
-    }
+    const renamed = window.prompt("Rename project", currentProject.name)?.trim();
+    if (!renamed || renamed === currentProject.name) return;
+
+    setProjects((prev) =>
+      prev.map((project) =>
+        project.id === projectId ? { ...project, name: renamed } : project
+      )
+    );
+    toast.success("Project renamed");
   };
 
-  const handleUpdateProject = async (
-    id: string,
-    data: { title: string; description: string },
-  ) => {
-    setError(null);
+  const handleToggleStarProject = (projectId: string) => {
+    let nextStarState = false;
 
-    try {
-      setProjects((prev) =>
-        prev.map((project) =>
-          project.id === id
-            ? {
-                ...project,
-                title: data.title,
-                description: data.description,
-                updatedAt: new Date().toISOString(),
-              }
-            : project,
-        ),
-      );
+    setProjects((prev) =>
+      prev.map((project) => {
+        if (project.id !== projectId) {
+          return project;
+        }
 
-      toast.success("Project updated successfully");
-    } catch (fetchError) {
-      setError("Failed to update project. Please try again.");
-      toast.error("Failed to update project");
-      throw fetchError;
-    }
-  };
-
-  const handleDuplicateProject = async (id: string) => {
-    setError(null);
-
-    try {
-      const projectToDuplicate = projects.find((project) => project.id === id);
-
-      if (projectToDuplicate) {
-        const duplicatedProject: Project = {
-          ...projectToDuplicate,
-          id: `${projectToDuplicate.id}-copy-${Math.random().toString(36).slice(2, 6)}`,
-          title: `${projectToDuplicate.title} Copy`,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          Starmark: [],
+        nextStarState = !project.isStarred;
+        return {
+          ...project,
+          isStarred: nextStarState,
         };
-        setProjects((prev) => [duplicatedProject, ...prev]);
-        toast.success("Project duplicated successfully");
-      } else {
-        throw new Error("Missing project data");
-      }
-    } catch (fetchError) {
-      setError("Failed to duplicate project. Please try again.");
-      toast.error("Failed to duplicate project");
-      throw fetchError;
-    }
+      })
+    );
+
+    toast.success(nextStarState ? "Project starred" : "Project unstarred");
+  };
+
+  const handleDeleteProject = (projectId: string) => {
+    setProjects((prev) => prev.filter((project) => project.id !== projectId));
+    toast.success("Project deleted");
   };
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-8 flex flex-col gap-5 rounded-[2rem] border bg-card/90 p-6 shadow-sm sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-8 flex flex-col gap-5 rounded-[2rem] border bg-card/90 p-6 shadow-sm">
         <div className="space-y-2">
           <p className="text-sm font-medium text-primary">
             Collaboration Workspace
@@ -107,7 +100,10 @@ const Dashboard = ({
             your team work visible in one focused place.
           </p>
         </div>
-        <AddNewButton onCreateProject={handleCreateProject} />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <ThemeToggle />
+          <AddNewButton onCreateProject={handleCreateProject} />
+        </div>
       </div>
 
       <div className="flex w-full flex-col items-center justify-center">
@@ -124,9 +120,9 @@ const Dashboard = ({
         ) : (
           <ProjectTable
             projects={projects}
+            onRenameProject={handleRenameProject}
+            onToggleStarProject={handleToggleStarProject}
             onDeleteProject={handleDeleteProject}
-            onUpdateProject={handleUpdateProject}
-            onDuplicateProject={handleDuplicateProject}
           />
         )}
       </div>

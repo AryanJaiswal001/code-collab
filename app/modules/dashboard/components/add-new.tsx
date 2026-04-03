@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +19,7 @@ import { LayoutGrid, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { createPlayground } from "../actions";
 import type { Project, TemplateKind } from "../types";
+import addNewIllustration from "@/app/dashboard/addnew.svg";
 
 const AddNewButton = ({
   onCreateProject,
@@ -77,6 +79,16 @@ const AddNewButton = ({
             work.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="overflow-hidden rounded-2xl border bg-muted/20 p-3">
+          <Image
+            src={addNewIllustration}
+            alt="Create project illustration"
+            width={640}
+            height={320}
+            className="h-auto w-full"
+          />
+        </div>
 
         <div className="grid gap-5 py-2">
           <div className="grid gap-2">
