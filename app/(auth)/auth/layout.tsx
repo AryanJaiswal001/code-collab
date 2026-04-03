@@ -8,13 +8,13 @@ export default function AuthLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <main className="min-h-screen w-full grid lg:grid-cols-2 relative">
+    <main className="min-h-screen w-full grid lg:grid-cols-2 relative bg-zinc-100 dark:bg-zinc-950 transition-colors duration-300">
       <div className="absolute top-4 right-4 sm:top-8 sm:right-8 z-50">
         <ThemeToggle />
       </div>
 
       {/* Left side - Illustration */}
-      <div className="hidden lg:flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-950 p-10 lg:p-20 transition-colors duration-300">
+      <div className="hidden lg:flex flex-col items-center justify-center p-10 lg:p-20">
         <div className="w-full max-w-xl mx-auto flex flex-col items-center text-center">
           <div className="mb-10 space-y-4">
             <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl text-zinc-900 dark:text-zinc-100 transition-colors">
@@ -40,7 +40,7 @@ export default function AuthLayout({
       </div>
 
       {/* Right side - Form/Children */}
-      <div className="flex flex-col relative bg-white dark:bg-zinc-900 transition-colors duration-300 items-center justify-center p-6 sm:p-12 lg:p-20 w-full h-full">
+      <div className="flex flex-col relative items-center justify-center p-6 sm:p-12 lg:p-20 w-full h-full">
         <div className="w-full max-w-md">{children}</div>
       </div>
     </main>
