@@ -53,7 +53,10 @@ export default function ProjectTable({
         </TableHeader>
         <TableBody>
           {projects.map((project) => (
-            <TableRow key={project.id} className="transition-colors hover:bg-primary/5">
+            <TableRow
+              key={project.id}
+              className="transition-colors hover:bg-primary/5"
+            >
               <TableCell className="max-w-[320px] pl-5">
                 <div className="space-y-1">
                   <button

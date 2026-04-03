@@ -36,7 +36,7 @@ const Dashboard = ({
   initialError,
 }: DashboardProps) => {
   const [projects, setProjects] = useState<DashboardProject[]>(
-    () => initialProjects?.map(toDashboardProject) ?? []
+    () => initialProjects?.map(toDashboardProject) ?? [],
   );
   const error = initialError ?? null;
 
@@ -51,13 +51,15 @@ const Dashboard = ({
     const currentProject = projects.find((project) => project.id === projectId);
     if (!currentProject) return;
 
-    const renamed = window.prompt("Rename project", currentProject.name)?.trim();
+    const renamed = window
+      .prompt("Rename project", currentProject.name)
+      ?.trim();
     if (!renamed || renamed === currentProject.name) return;
 
     setProjects((prev) =>
       prev.map((project) =>
-        project.id === projectId ? { ...project, name: renamed } : project
-      )
+        project.id === projectId ? { ...project, name: renamed } : project,
+      ),
     );
     toast.success("Project renamed");
   };
@@ -76,7 +78,7 @@ const Dashboard = ({
           ...project,
           isStarred: nextStarState,
         };
-      })
+      }),
     );
 
     toast.success(nextStarState ? "Project starred" : "Project unstarred");
