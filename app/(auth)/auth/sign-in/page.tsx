@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowLeft, Home } from "lucide-react";
+import { ArrowLeft, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 
@@ -34,18 +34,18 @@ export default function SignInPage() {
           type="button"
           variant="outline"
           className="w-full"
-          onClick={() => signIn("google", { callbackUrl: "/home#home" })}
+          onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
         >
-          <Home className="mr-2 h-4 w-4" />
+          <LayoutDashboard className="mr-2 h-4 w-4" />
           <span>Sign in with Google</span>
         </Button>
         <Button
           type="button"
           variant="outline"
           className="w-full"
-          onClick={() => signIn("github", { callbackUrl: "/home#home" })}
+          onClick={() => signIn("github", { callbackUrl: "/dashboard" })}
         >
-          <Home className="mr-2 h-4 w-4" />
+          <LayoutDashboard className="mr-2 h-4 w-4" />
           <span>Sign in with GitHub</span>
         </Button>
       </CardContent>

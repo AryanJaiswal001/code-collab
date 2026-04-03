@@ -16,7 +16,7 @@ export default auth((req) => {
   }
 
   if (isAuthenticated && isSignInPage) {
-    return NextResponse.redirect(new URL("/home#home", req.url));
+    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
   if (!isAuthenticated && !PUBLIC_ROUTES.has(pathname)) {
