@@ -6,15 +6,19 @@ import {
   useEffect,
   useEffectEvent,
   useMemo,
+  useRef,
   useState,
   startTransition,
 } from "react";
 import {
   ArrowLeft,
+  Eye,
   FolderGit2,
+  PanelLeft,
   RefreshCw,
   Save,
   Share2,
+  SquareTerminal,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -51,16 +55,25 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import TerminalComponent, {
+  type TerminalRef,
+} from "../../webcontainers/components/terminal";
+import WebContainerPreview, {
+  getWebContainerRuntimeOutputBuffer,
+} from "../../webcontainers/components/webcontainer-preview";
 import { PlaygroundEditor } from "./playground-editor";
 import { PlaygroundExplorer } from "./playground-explorer";
+import { PanelResizeHandle } from "./panel-resize-handle";
+import { useIdeLayout } from "../hooks/useIdeLayout";
 import { useWebContainer } from "../../webcontainers/hooks/useWebContainer";
-import WebContainerPreview from "../../webcontainers/components/webcontainer-preview";
 
 type WorkspacePlaygroundShellProps = {
   initialSnapshot: WorkspaceSnapshot;
@@ -183,6 +196,20 @@ export function WorkspacePlaygroundShell({
   const [isImportingRepository, setIsImportingRepository] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [socket, setSocket] = useState<Awaited<ReturnType<typeof getWorkspaceSocket>> | null>(null);
+  const terminalRef = useRef<TerminalRef | null>(null);
+  const hasNormalizedRightRailWidthRef = useRef(false);
+  const layout = useIdeLayout({
+    storageKey: `workspace-playground-layout:${initialSnapshot.id}`,
+    enableCollaboration: true,
+    defaultRightRailWidth: 760,
+    rightRailMaxWidth: 960,
+  });
+  const primaryButtonClass =
+    "rounded-xl border border-blue-500/40 bg-blue-600 text-white shadow-[0_12px_32px_rgba(37,99,235,0.26)] hover:bg-blue-500";
+  const secondaryButtonClass =
+    "rounded-xl border border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10";
+  const collaborationColumnWidth = 360;
+  const runtimeColumnMinWidth = 320;
 
   const fileStateMap = useMemo(() => buildFileStateMap(fileStates), [fileStates]);
   const activeCollaboratorNamesByPath = useMemo(
@@ -942,6 +969,256 @@ export function WorkspacePlaygroundShell({
     };
   }, [activeFileId]);
 
+  useEffect(() => {
+    if (hasNormalizedRightRailWidthRef.current || layout.isCompactViewport) {
+      return;
+    }
+
+    hasNormalizedRightRailWidthRef.current = true;
+
+    if (layout.rightRailWidth < runtimeColumnMinWidth + collaborationColumnWidth) {
+      layout.setRightRailWidth(runtimeColumnMinWidth + collaborationColumnWidth + 80);
+    }
+  }, [layout, runtimeColumnMinWidth, collaborationColumnWidth]);
+
+  const assignedUserNamesByPath = Object.fromEntries(
+    fileStates.map((fileState) => [fileState.path, fileState.assignedUserName]),
+  );
+  const hasRuntimePanels = layout.previewOpen || layout.terminalOpen;
+  const desktopRightRailWidth = layout.collaborationOpen
+    ? hasRuntimePanels
+      ? Math.max(
+          layout.rightRailWidth,
+          runtimeColumnMinWidth + collaborationColumnWidth,
+        )
+      : collaborationColumnWidth
+    : Math.max(
+        layout.rightRailWidth - collaborationColumnWidth,
+        runtimeColumnMinWidth,
+      );
+  const workspaceGridTemplateColumns = (() => {
+    const leftColumn = layout.explorerOpen ? `${layout.explorerWidth}px` : "0px";
+    const leftHandle = layout.explorerOpen ? "10px" : "0px";
+    const rightHandle = layout.isRightRailVisible ? "10px" : "0px";
+    const rightColumn = layout.isRightRailVisible
+      ? `${desktopRightRailWidth}px`
+      : "0px";
+
+    return `${leftColumn} ${leftHandle} minmax(0, 1fr) ${rightHandle} ${rightColumn}`;
+  })();
+
+  const handleOpenCollaborationPanel = () => {
+    setActivePanelTab("members");
+    layout.setCollaborationOpen(true);
+
+    if (layout.isCompactViewport) {
+      layout.setRightRailSheetOpen(true);
+    }
+  };
+
+  const explorerContent = (
+    <PlaygroundExplorer
+      tree={tree}
+      activeFileId={activeFileId}
+      dirtyFileIds={dirtyFileIds}
+      assignedUserNames={assignedUserNamesByPath}
+      activeCollaboratorNamesByPath={activeCollaboratorNamesByPath}
+      canCreateEntries={currentUser.role !== "MEMBER" || snapshot.rules === "LENIENT"}
+      canEditPath={canEditPath}
+      onToggleCollapse={layout.toggleExplorer}
+      onSelectFile={selectFile}
+      onCreateNode={(input) => void handleCreateNode(input)}
+      onRenameNode={(nodePath, nextName) => void handleRenameNode(nodePath, nextName)}
+      onDeleteNode={(nodePath) => void handleDeleteNode(nodePath)}
+    />
+  );
+
+  const editorContent = (
+    <PlaygroundEditor
+      openFiles={openFiles}
+      activeFile={activeFile}
+      hasDirtyFiles={hasDirtyFiles}
+      isReadOnly={isActiveFileReadOnly}
+      workspaceStatusLabel={workspaceStatus.label}
+      workspaceStatusTone={workspaceStatus.tone}
+      activeCollaboratorNames={activeFileCollaborators}
+      activeFileAssigneeName={activeFileAssigneeName}
+      canAssignActiveFile={currentUser.canAssignFiles}
+      pendingRemoteUpdateLabel={
+        activeFilePendingUpdate
+          ? `${activeFilePendingUpdate.author.name} pushed a newer version of this file.`
+          : null
+      }
+      isLoadingRemoteUpdate={isLoadingRemoteUpdate}
+      onSelectFile={selectFile}
+      onCloseAllFiles={closeAllFiles}
+      onCloseFile={closeFile}
+      onChange={updateFileContent}
+      onSaveFile={(fileId) => void handleSaveFile(fileId)}
+      onSaveAllFiles={() => void handleSaveAllFiles()}
+      onPushFile={(fileId) => void handlePushFile(fileId)}
+      onLoadPendingUpdate={() => void handleLoadPendingUpdate()}
+      onRequestAssignActiveFile={() => {
+        setSelectedAssigneeId(activeFileState?.assignedUserId ?? "__unassigned__");
+        setIsAssignDialogOpen(true);
+      }}
+    />
+  );
+
+  const collaborationContent = (
+    <CollaborationPanel
+      activeTab={activePanelTab}
+      unreadChatCount={unreadChatCount}
+      unreadActivityCount={unreadActivityCount}
+      currentUser={currentUser}
+      members={members}
+      presence={presence}
+      chatMessages={chatMessages}
+      chatDraft={chatDraft}
+      isSendingChat={isSendingChat}
+      activities={activities}
+      voiceParticipants={voice.participants}
+      remoteAudio={voice.remoteAudio}
+      isVoiceJoined={voice.isVoiceJoined}
+      isJoiningVoice={voice.isJoiningVoice}
+      isSelfMuted={voice.isSelfMuted}
+      voiceError={voice.voiceError}
+      inviteEmailDraft={inviteEmailDraft}
+      latestInviteUrl={latestInviteUrl}
+      isSendingInvites={isSendingInvites}
+      memberActionInFlightId={memberActionInFlightId}
+      onTabChange={setActivePanelTab}
+      onChatDraftChange={setChatDraft}
+      onSendChat={() => void handleSendChat()}
+      onJoinVoice={() => void voice.joinVoice()}
+      onLeaveVoice={() => voice.leaveVoice()}
+      onToggleSelfMuted={voice.toggleSelfMuted}
+      onClearVoiceError={voice.clearVoiceError}
+      onInviteEmailDraftChange={setInviteEmailDraft}
+      onCreateInviteLink={() => void handleCreateInviteLink()}
+      onSendEmailInvites={() => void handleSendEmailInvites()}
+      onPromoteMember={(memberId) => void handlePromoteMember(memberId)}
+      onDemoteMember={(memberId) => void handleDemoteMember(memberId)}
+      onRemoveMember={(memberId) => void handleRemoveMember(memberId)}
+      onToggleVoiceMute={(memberId, isVoiceMuted) =>
+        void handleToggleVoiceMute(memberId, isVoiceMuted)
+      }
+      className={layout.isCompactViewport ? "border-l-0 border-t border-white/10" : ""}
+    />
+  );
+
+  const runtimeContent = (
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-[#050816] transition-all duration-200">
+      {layout.previewOpen ? (
+        <div className="min-h-[280px] min-w-0 flex-1 overflow-hidden">
+          <WebContainerPreview
+            templateData={templateData}
+            instance={instance}
+            isLoading={isLoading}
+            error={error?.message ?? null}
+            restartKey={restartKey}
+            onRestart={() => setRestartKey((value) => value + 1)}
+            runtimeKey={snapshot.id}
+            showTerminalPanel={false}
+            terminalRef={terminalRef}
+          />
+        </div>
+      ) : null}
+
+      {layout.terminalOpen ? (
+        <>
+          {layout.previewOpen ? (
+            <PanelResizeHandle
+              orientation="horizontal"
+              onResize={(delta) => layout.setTerminalHeight(layout.terminalHeight - delta)}
+              className="border-y border-white/10 bg-[#060b16]"
+            />
+          ) : null}
+          <div
+            className={cn(
+              "min-h-[10rem] overflow-hidden",
+              layout.previewOpen ? "flex-shrink-0" : "min-h-0 flex-1",
+            )}
+            style={
+              layout.previewOpen
+                ? { height: `${layout.terminalHeight}px` }
+                : undefined
+            }
+          >
+            <div className="h-full min-h-0 overflow-hidden">
+              <TerminalComponent
+                ref={terminalRef}
+                webContainerInstance={instance}
+                theme="dark"
+                className="h-full border-0"
+                initialOutput={getWebContainerRuntimeOutputBuffer()}
+              />
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {!layout.previewOpen && !layout.terminalOpen ? (
+        <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-white/45">
+          Enable preview or terminal to open the runtime tools.
+        </div>
+      ) : null}
+    </div>
+  );
+
+  const rightRailContent = layout.isCompactViewport ? (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#050816] transition-all duration-200">
+      {hasRuntimePanels ? (
+        <div className="min-h-0 flex-[1.15] overflow-hidden">{runtimeContent}</div>
+      ) : null}
+      {layout.collaborationOpen ? (
+        <div
+          className={cn(
+            "min-h-[20rem] overflow-hidden",
+            hasRuntimePanels ? "flex-1" : "flex-[1.2]",
+          )}
+        >
+          {collaborationContent}
+        </div>
+      ) : null}
+      {!hasRuntimePanels && !layout.collaborationOpen ? (
+        <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-white/45">
+          Enable preview, terminal, or comms from the toolbar to open the right rail.
+        </div>
+      ) : null}
+    </div>
+  ) : (
+    <div
+      className="grid h-full min-h-0 min-w-0 overflow-hidden bg-[#050816] transition-all duration-200"
+      style={{
+        gridTemplateColumns:
+          layout.collaborationOpen && hasRuntimePanels
+            ? `minmax(0, 1fr) ${collaborationColumnWidth}px`
+            : layout.collaborationOpen
+              ? `${collaborationColumnWidth}px`
+              : "minmax(0, 1fr)",
+      }}
+    >
+      {hasRuntimePanels ? (
+        <div className="min-h-0 min-w-0 overflow-hidden">
+          {runtimeContent}
+        </div>
+      ) : null}
+
+      {layout.collaborationOpen ? (
+        <div className="min-h-0 min-w-[320px] max-w-[380px] overflow-hidden">
+          {collaborationContent}
+        </div>
+      ) : null}
+
+      {!hasRuntimePanels && !layout.collaborationOpen ? (
+        <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-white/45">
+          Enable preview, terminal, or comms from the toolbar to open the right rail.
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
     <>
       <Dialog
@@ -1060,95 +1337,151 @@ export function WorkspacePlaygroundShell({
       </Dialog>
 
       <main className="h-screen overflow-hidden bg-[#050816] text-white">
-        <div className="flex h-full flex-col">
-          <header className="flex items-center justify-between border-b border-white/10 bg-[#050816]/95 px-4 py-3 backdrop-blur sm:px-5">
-            <div className="flex min-w-0 items-center gap-3">
-              <Link
-                href={backHref}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span className="sr-only">Back</span>
-              </Link>
+        <div className="flex h-full flex-col overflow-hidden">
+          <header className="flex flex-shrink-0 flex-col gap-4 border-b border-white/10 bg-[#050816]/95 px-4 py-3 backdrop-blur sm:px-5">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <Link
+                  href={backHref}
+                  className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className="sr-only">Back</span>
+                </Link>
 
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-semibold text-white">
-                    {snapshot.name}
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-white">
+                      {snapshot.name}
+                    </p>
+                    <Badge
+                      variant="outline"
+                      className="border-white/10 bg-white/5 text-white/70"
+                    >
+                      {snapshot.rules}
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className="border-white/10 bg-white/5 text-white/70"
+                    >
+                      {snapshot.mode}
+                    </Badge>
+                  </div>
+                  <p className="truncate text-xs text-white/45">
+                    Workspace {snapshot.id}
                   </p>
-                  <Badge
-                    variant="outline"
-                    className="border-white/10 bg-white/5 text-white/70"
-                  >
-                    {snapshot.rules}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="border-white/10 bg-white/5 text-white/70"
-                  >
-                    {snapshot.mode}
-                  </Badge>
                 </div>
-                <p className="truncate text-xs text-white/45">
-                  Workspace {snapshot.id}
-                </p>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60 lg:flex">
-                <Users className="h-4 w-4" />
-                {presence.length} online
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
-                onClick={() => void handleSaveAllFiles()}
-                disabled={!hasDirtyFiles}
-              >
-                <Save className="h-4 w-4" />
-                Save all
-              </Button>
-              {currentUser.canImportRepository ? (
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60 lg:flex">
+                  <Users className="h-4 w-4" />
+                  {presence.length} online
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="rounded-xl px-3 text-white/75 hover:bg-white/10 hover:text-white"
+                    onClick={layout.toggleExplorer}
+                    aria-pressed={
+                      layout.isCompactViewport
+                        ? layout.explorerSheetOpen
+                        : layout.explorerOpen
+                    }
+                  >
+                    <PanelLeft className="h-4 w-4" />
+                    <span className="hidden sm:inline">Explorer</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="rounded-xl px-3 text-white/75 hover:bg-white/10 hover:text-white"
+                    onClick={layout.togglePreview}
+                    aria-pressed={layout.previewOpen}
+                  >
+                    <Eye className="h-4 w-4" />
+                    <span className="hidden sm:inline">Preview</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="rounded-xl px-3 text-white/75 hover:bg-white/10 hover:text-white"
+                    onClick={layout.toggleTerminal}
+                    aria-pressed={layout.terminalOpen}
+                  >
+                    <SquareTerminal className="h-4 w-4" />
+                    <span className="hidden sm:inline">Terminal</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="rounded-xl px-3 text-white/75 hover:bg-white/10 hover:text-white"
+                    onClick={() => {
+                      if (!layout.collaborationOpen) {
+                        setActivePanelTab("chat");
+                      }
+
+                      layout.toggleCollaboration();
+                    }}
+                    aria-pressed={layout.collaborationOpen}
+                  >
+                    <Share2 className="h-4 w-4" />
+                    <span className="hidden sm:inline">Comms</span>
+                  </Button>
+                </div>
+
                 <Button
                   type="button"
                   variant="outline"
-                  className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
-                  onClick={() => setIsImportDialogOpen(true)}
+                  className={secondaryButtonClass}
+                  onClick={() => void handleSaveAllFiles()}
+                  disabled={!hasDirtyFiles}
                 >
-                  <FolderGit2 className="h-4 w-4" />
-                  Sync GitHub
+                  <Save className="h-4 w-4" />
+                  Save all
                 </Button>
-              ) : null}
-              <Button
-                type="button"
-                variant="outline"
-                className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
-                onClick={() => setActivePanelTab("members")}
-              >
-                <Share2 className="h-4 w-4" />
-                Share
-              </Button>
-              <Button
-                type="button"
-                className="bg-white text-black hover:bg-white/90"
-                onClick={() => setRestartKey((value) => value + 1)}
-              >
-                <RefreshCw className="h-4 w-4" />
-                Restart preview
-              </Button>
+                {currentUser.canImportRepository ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={secondaryButtonClass}
+                    onClick={() => setIsImportDialogOpen(true)}
+                  >
+                    <FolderGit2 className="h-4 w-4" />
+                    Sync GitHub
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={secondaryButtonClass}
+                  onClick={handleOpenCollaborationPanel}
+                >
+                  <Share2 className="h-4 w-4" />
+                  Share
+                </Button>
+                <Button
+                  type="button"
+                  className={primaryButtonClass}
+                  onClick={() => setRestartKey((value) => value + 1)}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Restart
+                </Button>
+              </div>
             </div>
           </header>
 
           {pendingWorkspaceUpdate ? (
-            <div className="flex items-center justify-between gap-3 border-b border-amber-300/20 bg-amber-300/10 px-4 py-2 text-sm text-amber-50">
+            <div className="flex flex-shrink-0 flex-col gap-3 border-b border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-50 sm:flex-row sm:items-center sm:justify-between">
               <span>{pendingWorkspaceUpdate.summary}</span>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                className="border-amber-100/20 bg-white/10 text-amber-50 hover:bg-white/20"
+                className="rounded-xl border-amber-100/20 bg-white/10 text-amber-50 hover:bg-white/20"
                 onClick={() => {
                   void (async () => {
                     if (
@@ -1176,129 +1509,111 @@ export function WorkspacePlaygroundShell({
             </div>
           ) : null}
 
-          <div className="flex items-center justify-between border-b border-white/10 bg-[#060b16] px-4 py-2 text-xs text-white/45">
+          <div className="flex flex-shrink-0 flex-col gap-1 border-b border-white/10 bg-[#060b16] px-4 py-2 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between">
             <span>
               {openFiles.length} open tab{openFiles.length === 1 ? "" : "s"} and{" "}
               {dirtyFileIds.length} unsaved change{dirtyFileIds.length === 1 ? "" : "s"}
             </span>
-            <span>
-              {workspaceDirtyFileIds.length} file{workspaceDirtyFileIds.length === 1 ? "" : "s"} waiting to be pushed to the workspace
+            <span className="sm:text-right">
+              {workspaceDirtyFileIds.length} file
+              {workspaceDirtyFileIds.length === 1 ? "" : "s"} waiting to be pushed to the
+              workspace
             </span>
           </div>
 
-          <div className="min-h-0 flex-1">
-            <ResizablePanelGroup orientation="horizontal" className="h-full">
-              <ResizablePanel defaultSize={18} minSize={14}>
-                <PlaygroundExplorer
-                  tree={tree}
-                  activeFileId={activeFileId}
-                  dirtyFileIds={dirtyFileIds}
-                  assignedUserNames={Object.fromEntries(
-                    fileStates.map((fileState) => [fileState.path, fileState.assignedUserName]),
-                  )}
-                  activeCollaboratorNamesByPath={activeCollaboratorNamesByPath}
-                  canCreateEntries={currentUser.role !== "MEMBER" || snapshot.rules === "LENIENT"}
-                  canEditPath={canEditPath}
-                  onSelectFile={selectFile}
-                  onCreateNode={(input) => void handleCreateNode(input)}
-                  onRenameNode={(nodePath, nextName) => void handleRenameNode(nodePath, nextName)}
-                  onDeleteNode={(nodePath) => void handleDeleteNode(nodePath)}
-                />
-              </ResizablePanel>
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <div
+              className="hidden h-full min-h-0 transition-[grid-template-columns] duration-200 lg:grid"
+              style={{ gridTemplateColumns: workspaceGridTemplateColumns }}
+            >
+              {layout.explorerOpen ? (
+                <div className="min-h-0 overflow-hidden">{explorerContent}</div>
+              ) : (
+                <div />
+              )}
 
-              <ResizableHandle withHandle className="bg-white/10" />
-
-              <ResizablePanel defaultSize={34} minSize={26}>
-                <PlaygroundEditor
-                  openFiles={openFiles}
-                  activeFile={activeFile}
-                  hasDirtyFiles={hasDirtyFiles}
-                  isReadOnly={isActiveFileReadOnly}
-                  workspaceStatusLabel={workspaceStatus.label}
-                  workspaceStatusTone={workspaceStatus.tone}
-                  activeCollaboratorNames={activeFileCollaborators}
-                  activeFileAssigneeName={activeFileAssigneeName}
-                  canAssignActiveFile={currentUser.canAssignFiles}
-                  pendingRemoteUpdateLabel={
-                    activeFilePendingUpdate
-                      ? `${activeFilePendingUpdate.author.name} pushed a newer version of this file.`
-                      : null
+              {layout.explorerOpen ? (
+                <PanelResizeHandle
+                  orientation="vertical"
+                  onResize={(delta) =>
+                    layout.setExplorerWidth(layout.explorerWidth + delta)
                   }
-                  isLoadingRemoteUpdate={isLoadingRemoteUpdate}
-                  onSelectFile={selectFile}
-                  onCloseAllFiles={closeAllFiles}
-                  onCloseFile={closeFile}
-                  onChange={updateFileContent}
-                  onSaveFile={(fileId) => void handleSaveFile(fileId)}
-                  onSaveAllFiles={() => void handleSaveAllFiles()}
-                  onPushFile={(fileId) => void handlePushFile(fileId)}
-                  onLoadPendingUpdate={() => void handleLoadPendingUpdate()}
-                  onRequestAssignActiveFile={() => {
-                    setSelectedAssigneeId(activeFileState?.assignedUserId ?? "__unassigned__");
-                    setIsAssignDialogOpen(true);
-                  }}
+                  className="border-r border-white/10 bg-[#050816]"
                 />
-              </ResizablePanel>
+              ) : (
+                <div />
+              )}
 
-              <ResizableHandle withHandle className="bg-white/10" />
+              <div className="min-h-0 min-w-0 overflow-hidden">{editorContent}</div>
 
-              <ResizablePanel defaultSize={28} minSize={20}>
-                <WebContainerPreview
-                  templateData={templateData}
-                  instance={instance}
-                  isLoading={isLoading}
-                  error={error?.message ?? null}
-                  restartKey={restartKey}
-                  onRestart={() => setRestartKey((value) => value + 1)}
-                  runtimeKey={snapshot.id}
-                />
-              </ResizablePanel>
-
-              <ResizableHandle withHandle className="bg-white/10" />
-
-              <ResizablePanel defaultSize={20} minSize={18}>
-                <CollaborationPanel
-                  activeTab={activePanelTab}
-                  unreadChatCount={unreadChatCount}
-                  unreadActivityCount={unreadActivityCount}
-                  currentUser={currentUser}
-                  members={members}
-                  presence={presence}
-                  chatMessages={chatMessages}
-                  chatDraft={chatDraft}
-                  isSendingChat={isSendingChat}
-                  activities={activities}
-                  voiceParticipants={voice.participants}
-                  remoteAudio={voice.remoteAudio}
-                  isVoiceJoined={voice.isVoiceJoined}
-                  isJoiningVoice={voice.isJoiningVoice}
-                  isSelfMuted={voice.isSelfMuted}
-                  voiceError={voice.voiceError}
-                  inviteEmailDraft={inviteEmailDraft}
-                  latestInviteUrl={latestInviteUrl}
-                  isSendingInvites={isSendingInvites}
-                  memberActionInFlightId={memberActionInFlightId}
-                  onTabChange={setActivePanelTab}
-                  onChatDraftChange={setChatDraft}
-                  onSendChat={() => void handleSendChat()}
-                  onJoinVoice={() => void voice.joinVoice()}
-                  onLeaveVoice={() => voice.leaveVoice()}
-                  onToggleSelfMuted={voice.toggleSelfMuted}
-                  onClearVoiceError={voice.clearVoiceError}
-                  onInviteEmailDraftChange={setInviteEmailDraft}
-                  onCreateInviteLink={() => void handleCreateInviteLink()}
-                  onSendEmailInvites={() => void handleSendEmailInvites()}
-                  onPromoteMember={(memberId) => void handlePromoteMember(memberId)}
-                  onDemoteMember={(memberId) => void handleDemoteMember(memberId)}
-                  onRemoveMember={(memberId) => void handleRemoveMember(memberId)}
-                  onToggleVoiceMute={(memberId, isVoiceMuted) =>
-                    void handleToggleVoiceMute(memberId, isVoiceMuted)
+              {layout.isRightRailVisible ? (
+                <PanelResizeHandle
+                  orientation="vertical"
+                  onResize={(delta) =>
+                    layout.setRightRailWidth(layout.rightRailWidth - delta)
                   }
+                  className="border-l border-white/10 bg-[#050816]"
                 />
-              </ResizablePanel>
-            </ResizablePanelGroup>
+              ) : (
+                <div />
+              )}
+
+              {layout.isRightRailVisible ? (
+                <div className="min-h-0 min-w-0 overflow-hidden border-l border-white/10">
+                  {rightRailContent}
+                </div>
+              ) : (
+                <div />
+              )}
+            </div>
+
+            <div className="flex h-full min-h-0 lg:hidden">
+              <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{editorContent}</div>
+            </div>
           </div>
         </div>
+
+        <Sheet open={layout.explorerSheetOpen} onOpenChange={layout.setExplorerSheetOpen}>
+          <SheetContent side="left" className="w-full max-w-sm border-white/10 bg-[#050816] p-0 text-white">
+            <SheetHeader className="border-b border-white/10 px-4 py-4 text-left">
+              <SheetTitle className="text-white">Explorer</SheetTitle>
+              <SheetDescription className="text-white/55">
+                Browse and manage files while the editor stays full width.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <PlaygroundExplorer
+                tree={tree}
+                activeFileId={activeFileId}
+                dirtyFileIds={dirtyFileIds}
+                assignedUserNames={assignedUserNamesByPath}
+                activeCollaboratorNamesByPath={activeCollaboratorNamesByPath}
+                canCreateEntries={currentUser.role !== "MEMBER" || snapshot.rules === "LENIENT"}
+                canEditPath={canEditPath}
+                onToggleCollapse={() => layout.setExplorerSheetOpen(false)}
+                onSelectFile={(fileId) => {
+                  selectFile(fileId);
+                  layout.setExplorerSheetOpen(false);
+                }}
+                onCreateNode={(input) => void handleCreateNode(input)}
+                onRenameNode={(nodePath, nextName) => void handleRenameNode(nodePath, nextName)}
+                onDeleteNode={(nodePath) => void handleDeleteNode(nodePath)}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        <Sheet open={layout.rightRailSheetOpen} onOpenChange={layout.setRightRailSheetOpen}>
+          <SheetContent side="right" className="w-full max-w-md border-white/10 bg-[#050816] p-0 text-white">
+            <SheetHeader className="border-b border-white/10 px-4 py-4 text-left">
+              <SheetTitle className="text-white">Right Rail</SheetTitle>
+              <SheetDescription className="text-white/55">
+                Preview, terminal, and collaboration stay available here on smaller screens.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="min-h-0 flex-1 overflow-hidden">{rightRailContent}</div>
+          </SheetContent>
+        </Sheet>
       </main>
     </>
   );

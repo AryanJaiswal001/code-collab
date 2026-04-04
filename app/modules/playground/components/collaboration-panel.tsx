@@ -72,6 +72,7 @@ type CollaborationPanelProps = {
   onDemoteMember: (memberId: string) => void;
   onRemoveMember: (memberId: string) => void;
   onToggleVoiceMute: (memberId: string, isVoiceMuted: boolean) => void;
+  className?: string;
 };
 
 function getInitials(value: string) {
@@ -132,12 +133,22 @@ export function CollaborationPanel({
   onDemoteMember,
   onRemoveMember,
   onToggleVoiceMute,
+  className,
 }: CollaborationPanelProps) {
   const presenceByUserId = new Map(presence.map((item) => [item.userId, item]));
+  const primaryButtonClass =
+    "rounded-xl border border-blue-500/40 bg-blue-600 text-white shadow-[0_12px_32px_rgba(37,99,235,0.22)] hover:bg-blue-500";
+  const secondaryButtonClass =
+    "rounded-xl border border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10";
 
   return (
-    <aside className="flex h-full flex-col border-l border-white/10 bg-[#060b16]">
-      <div className="border-b border-white/10 px-4 py-4">
+    <aside
+      className={cn(
+        "flex h-full min-h-0 flex-col overflow-hidden border-l border-white/10 bg-[#060b16]",
+        className,
+      )}
+    >
+      <div className="flex-shrink-0 border-b border-white/10 px-4 py-4">
         <p className="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">
           Collaboration
         </p>
@@ -179,8 +190,8 @@ export function CollaborationPanel({
         className="min-h-0 flex-1"
       >
         <div className="border-b border-white/10 px-3 py-3">
-          <TabsList className="grid w-full grid-cols-4 bg-white/5">
-            <TabsTrigger value="chat" className="gap-1.5">
+          <TabsList className="grid w-full grid-cols-4 gap-1 rounded-xl bg-white/5 p-1">
+            <TabsTrigger value="chat" className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs">
               <MessageSquare className="h-4 w-4" />
               Chat
               {unreadChatCount ? (
@@ -189,15 +200,15 @@ export function CollaborationPanel({
                 </Badge>
               ) : null}
             </TabsTrigger>
-            <TabsTrigger value="members" className="gap-1.5">
+            <TabsTrigger value="members" className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs">
               <Users className="h-4 w-4" />
               Members
             </TabsTrigger>
-            <TabsTrigger value="voice" className="gap-1.5">
+            <TabsTrigger value="voice" className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs">
               <Radio className="h-4 w-4" />
               Voice
             </TabsTrigger>
-            <TabsTrigger value="activity" className="gap-1.5">
+            <TabsTrigger value="activity" className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs">
               <Activity className="h-4 w-4" />
               Activity
               {unreadActivityCount ? (
@@ -209,7 +220,7 @@ export function CollaborationPanel({
           </TabsList>
         </div>
         <TabsContent value="chat" className="mt-0 flex h-full flex-col data-[state=inactive]:hidden">
-          <ScrollArea className="min-h-0 flex-1 px-4 py-4">
+          <ScrollArea className="ide-scrollbar min-h-0 flex-1 px-4 py-4">
             <div className="space-y-3">
               {chatMessages.length ? (
                 chatMessages.map((message) => {
@@ -267,7 +278,7 @@ export function CollaborationPanel({
             />
             <Button
               type="button"
-              className="mt-3 w-full rounded-2xl bg-white text-black hover:bg-white/90"
+              className="mt-3 w-full rounded-xl border border-blue-500/40 bg-blue-600 text-white hover:bg-blue-500"
               disabled={isSendingChat || !chatDraft.trim()}
               onClick={onSendChat}
             >
@@ -277,7 +288,7 @@ export function CollaborationPanel({
         </TabsContent>
 
         <TabsContent value="members" className="mt-0 flex h-full flex-col data-[state=inactive]:hidden">
-          <ScrollArea className="min-h-0 flex-1 px-4 py-4">
+          <ScrollArea className="ide-scrollbar min-h-0 flex-1 px-4 py-4">
             <div className="space-y-4">
               {members.map((member) => {
                 const online = presenceByUserId.get(member.userId);
@@ -346,7 +357,7 @@ export function CollaborationPanel({
                             type="button"
                             size="sm"
                             variant="outline"
-                            className="rounded-full border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
+                            className={secondaryButtonClass}
                             onClick={() => onPromoteMember(member.userId)}
                             disabled={memberActionInFlightId === member.userId}
                           >
@@ -359,7 +370,7 @@ export function CollaborationPanel({
                             type="button"
                             size="sm"
                             variant="outline"
-                            className="rounded-full border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
+                            className={secondaryButtonClass}
                             onClick={() => onDemoteMember(member.userId)}
                             disabled={memberActionInFlightId === member.userId}
                           >
@@ -372,7 +383,7 @@ export function CollaborationPanel({
                             type="button"
                             size="sm"
                             variant="outline"
-                            className="rounded-full border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
+                            className={secondaryButtonClass}
                             onClick={() => onToggleVoiceMute(member.userId, !member.isVoiceMuted)}
                             disabled={memberActionInFlightId === member.userId}
                           >
@@ -415,7 +426,7 @@ export function CollaborationPanel({
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1 rounded-2xl border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
+                    className={cn("flex-1", secondaryButtonClass)}
                     onClick={onCreateInviteLink}
                   >
                     <Copy className="mr-2 h-4 w-4" />
@@ -425,7 +436,7 @@ export function CollaborationPanel({
                     <Button
                       type="button"
                       variant="outline"
-                      className="rounded-2xl border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
+                      className={secondaryButtonClass}
                       onClick={() => navigator.clipboard.writeText(latestInviteUrl)}
                     >
                       Copy
@@ -446,7 +457,7 @@ export function CollaborationPanel({
                 />
                 <Button
                   type="button"
-                  className="w-full rounded-2xl bg-white text-black hover:bg-white/90"
+                  className={cn("w-full", primaryButtonClass)}
                   disabled={isSendingInvites || !inviteEmailDraft.trim()}
                   onClick={onSendEmailInvites}
                 >
@@ -459,13 +470,13 @@ export function CollaborationPanel({
         </TabsContent>
 
         <TabsContent value="voice" className="mt-0 flex h-full flex-col data-[state=inactive]:hidden">
-          <div className="border-b border-white/10 px-4 py-4">
+          <div className="flex-shrink-0 border-b border-white/10 px-4 py-4">
             <div className="flex flex-wrap items-center gap-2">
               {isVoiceJoined ? (
                 <>
                   <Button
                     type="button"
-                    className="rounded-2xl bg-white text-black hover:bg-white/90"
+                    className={primaryButtonClass}
                     onClick={onLeaveVoice}
                   >
                     Leave Voice
@@ -473,7 +484,7 @@ export function CollaborationPanel({
                   <Button
                     type="button"
                     variant="outline"
-                    className="rounded-2xl border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
+                    className={secondaryButtonClass}
                     onClick={onToggleSelfMuted}
                   >
                     {isSelfMuted ? (
@@ -487,7 +498,7 @@ export function CollaborationPanel({
               ) : (
                 <Button
                   type="button"
-                  className="rounded-2xl bg-white text-black hover:bg-white/90"
+                  className={primaryButtonClass}
                   disabled={isJoiningVoice}
                   onClick={onJoinVoice}
                 >
@@ -513,7 +524,7 @@ export function CollaborationPanel({
             ) : null}
           </div>
 
-          <ScrollArea className="min-h-0 flex-1 px-4 py-4">
+          <ScrollArea className="ide-scrollbar min-h-0 flex-1 px-4 py-4">
             <div className="space-y-3">
               {voiceParticipants.length ? (
                 voiceParticipants.map((participant) => (
@@ -557,7 +568,7 @@ export function CollaborationPanel({
         </TabsContent>
 
         <TabsContent value="activity" className="mt-0 flex h-full flex-col data-[state=inactive]:hidden">
-          <ScrollArea className="min-h-0 flex-1 px-4 py-4">
+          <ScrollArea className="ide-scrollbar min-h-0 flex-1 px-4 py-4">
             <div className="space-y-3">
               {activities.length ? (
                 activities.map((activityItem) => (

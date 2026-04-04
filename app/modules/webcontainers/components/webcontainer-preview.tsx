@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import dynamic from "next/dynamic";
 import type { WebContainer, WebContainerProcess } from "@webcontainer/api";
 import {
@@ -11,11 +12,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
 import type { TemplateFolder } from "../../playground/types";
 import {
@@ -35,6 +31,8 @@ type WebContainerPreviewProps = {
   restartKey: number;
   onRestart: () => void;
   runtimeKey?: string;
+  showTerminalPanel?: boolean;
+  terminalRef?: RefObject<TerminalRef | null>;
 };
 
 const setupLabels = [
@@ -75,6 +73,10 @@ const runtimeSessionCache: RuntimeSessionCache = {
   serverReadyUnsubscribe: null,
   status: "idle",
 };
+
+export function getWebContainerRuntimeOutputBuffer() {
+  return runtimeSessionCache.outputBuffer;
+}
 
 function getSpawnOptions(projectRoot: string) {
   return projectRoot ? { cwd: projectRoot } : undefined;
@@ -152,9 +154,12 @@ export default function WebContainerPreview({
   restartKey,
   onRestart,
   runtimeKey = templateData.folderName,
+  showTerminalPanel = true,
+  terminalRef,
 }: WebContainerPreviewProps) {
-  const terminalRef = useRef<TerminalRef | null>(null);
+  const internalTerminalRef = useRef<TerminalRef | null>(null);
   const latestTemplateRef = useRef(templateData);
+  const terminalControllerRef = terminalRef ?? internalTerminalRef;
   const [previewUrl, setPreviewUrl] = useState(runtimeSessionCache.previewUrl);
   const [isPreviewFrameLoaded, setIsPreviewFrameLoaded] = useState(false);
   const [setupStep, setSetupStep] = useState(runtimeSessionCache.setupStep);
@@ -181,8 +186,8 @@ export default function WebContainerPreview({
 
   const writeToTerminal = useCallback((data: string) => {
     runtimeSessionCache.outputBuffer += data;
-    terminalRef.current?.writeToTerminal(data);
-  }, []);
+    terminalControllerRef.current?.writeToTerminal(data);
+  }, [terminalControllerRef]);
 
   useEffect(() => {
     if (!instance) {
@@ -221,7 +226,7 @@ export default function WebContainerPreview({
 
         if (runtimeSessionCache.runtimeKey && runtimeSessionCache.runtimeKey !== runtimeKey) {
           runtimeSessionCache.outputBuffer = "";
-          terminalRef.current?.clearTerminal();
+          terminalControllerRef.current?.clearTerminal();
         }
 
         clearRuntimeSessionCache();
@@ -231,7 +236,7 @@ export default function WebContainerPreview({
         runtimeSessionCache.outputBuffer += restartKey
           ? "\r\n=== Restarting WebContainer runtime ===\r\n"
           : "\r\n=== Booting WebContainer runtime ===\r\n";
-        terminalRef.current?.writeToTerminal(
+        terminalControllerRef.current?.writeToTerminal(
           restartKey
             ? "\r\n=== Restarting WebContainer runtime ===\r\n"
             : "\r\n=== Booting WebContainer runtime ===\r\n",
@@ -350,7 +355,7 @@ export default function WebContainerPreview({
     return () => {
       cancelled = true;
     };
-  }, [instance, restartKey, runtimeKey, writeToTerminal]);
+  }, [instance, restartKey, runtimeKey, terminalControllerRef, writeToTerminal]);
 
   const effectiveStatus: RuntimeStatus = error || setupError
     ? "error"
@@ -487,7 +492,7 @@ export default function WebContainerPreview({
                       variant="outline"
                       className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
                       onClick={() => {
-                        terminalRef.current?.focusTerminal();
+                        terminalControllerRef.current?.focusTerminal();
                       }}
                     >
                       View Logs
@@ -551,15 +556,15 @@ export default function WebContainerPreview({
   );
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-[#050816]">
-      <div className="border-b border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0))] px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-[#050816]">
+      <div className="flex-shrink-0 border-b border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0))] px-4 py-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <p className="text-sm font-medium text-white">Preview</p>
             <p className="text-xs text-white/40">Live app output</p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-shrink-0 items-center gap-2">
             <div
               className={`flex items-center gap-2 rounded-full px-2.5 py-1 text-xs ${statusMeta[effectiveStatus].className}`}
             >
@@ -570,7 +575,7 @@ export default function WebContainerPreview({
               type="button"
               size="sm"
               variant="outline"
-              className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
+              className="rounded-xl border border-blue-500/40 bg-blue-600 text-white hover:bg-blue-500"
               onClick={onRestart}
               disabled={isLoading}
             >
@@ -582,26 +587,25 @@ export default function WebContainerPreview({
       </div>
 
       <div className="min-h-0 flex-1">
-        <ResizablePanelGroup orientation="vertical" className="h-full">
-          <ResizablePanel defaultSize={70} minSize={38}>
-            {previewSurface}
-          </ResizablePanel>
-
-          <ResizableHandle withHandle className="bg-white/10" />
-
-          <ResizablePanel defaultSize={30} minSize={18}>
-            <TerminalComponent
-              ref={terminalRef}
-              webContainerInstance={instance}
-              theme="dark"
-              className="h-full border-0"
-              initialOutput={runtimeSessionCache.outputBuffer}
-              onClear={() => {
-                runtimeSessionCache.outputBuffer = "";
-              }}
-            />
-          </ResizablePanel>
-        </ResizablePanelGroup>
+        {showTerminalPanel ? (
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="min-h-0 flex-1">{previewSurface}</div>
+            <div className="h-64 min-h-[13rem] flex-shrink-0 overflow-hidden border-t border-white/10">
+              <TerminalComponent
+                ref={terminalControllerRef}
+                webContainerInstance={instance}
+                theme="dark"
+                className="h-full border-0"
+                initialOutput={runtimeSessionCache.outputBuffer}
+                onClear={() => {
+                  runtimeSessionCache.outputBuffer = "";
+                }}
+              />
+            </div>
+          </div>
+        ) : (
+          previewSurface
+        )}
       </div>
     </div>
   );

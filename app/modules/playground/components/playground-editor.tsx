@@ -58,11 +58,15 @@ export function PlaygroundEditor({
     () => openFiles.find((file) => file.id === activeFile?.id) ?? null,
     [activeFile?.id, openFiles],
   );
+  const primaryButtonClass =
+    "rounded-xl border border-blue-500/40 bg-blue-600 text-white shadow-[0_12px_32px_rgba(37,99,235,0.26)] hover:bg-blue-500";
+  const secondaryButtonClass =
+    "rounded-xl border border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10";
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#090d1a]">
-      <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-[#0a1020] px-2 py-2">
-        <ScrollArea className="w-full">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-[#090d1a]">
+      <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#0a1020] px-2 py-2">
+        <ScrollArea className="ide-scrollbar min-w-0 flex-1">
           <div className="flex min-w-max items-center gap-1">
             {openFiles.length ? (
               openFiles.map((file) => (
@@ -104,7 +108,7 @@ export function PlaygroundEditor({
           type="button"
           size="sm"
           variant="ghost"
-          className="shrink-0 text-white/55 hover:bg-white/10 hover:text-white disabled:text-white/25"
+          className="shrink-0 rounded-xl text-white/55 hover:bg-white/10 hover:text-white disabled:text-white/25"
           onClick={onCloseAllFiles}
           disabled={!openFiles.length}
         >
@@ -112,8 +116,8 @@ export function PlaygroundEditor({
         </Button>
       </div>
 
-      <div className="flex items-center justify-between border-b border-white/10 bg-[#0b1120] px-4 py-3">
-        <div className="min-w-0">
+      <div className="flex flex-shrink-0 flex-col gap-3 border-b border-white/10 bg-[#0b1120] px-4 py-3 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="truncate text-sm font-medium text-white">
               {activeFile?.name ?? "No file selected"}
@@ -177,54 +181,52 @@ export function PlaygroundEditor({
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-shrink-0 flex-wrap items-center gap-2 xl:justify-end">
           {canAssignActiveFile && activeFile ? (
             <Button
               type="button"
               size="sm"
               variant="outline"
-              className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
+              className={secondaryButtonClass}
               onClick={() => onRequestAssignActiveFile?.()}
             >
               Assign file
             </Button>
           ) : null}
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
-            onClick={onSaveAllFiles}
-            disabled={!hasDirtyFiles}
-          >
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className={secondaryButtonClass}
+              onClick={onSaveAllFiles}
+              disabled={!hasDirtyFiles}
+            >
             <Sparkles className="h-4 w-4" />
             Save all
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
-            onClick={() => onPushFile(activeFile?.id)}
-            disabled={!activeFile || isReadOnly}
-          >
-            Push to workspace
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
-            onClick={() => onSaveFile(activeFile?.id)}
-            disabled={!activeFile || !activeTab?.isDirty || isReadOnly}
-          >
+            <Button
+              type="button"
+              size="sm"
+              className={primaryButtonClass}
+              onClick={() => onPushFile(activeFile?.id)}
+              disabled={!activeFile || isReadOnly}
+            >
+              Push to workspace
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className={secondaryButtonClass}
+              onClick={() => onSaveFile(activeFile?.id)}
+              disabled={!activeFile || !activeTab?.isDirty || isReadOnly}
+            >
             <Save className="h-4 w-4" />
             Save
           </Button>
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 bg-[#0b1020]">
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden bg-[#0b1020]">
         {activeFile ? (
           <Editor
             key={activeFile.path}
@@ -250,7 +252,7 @@ export function PlaygroundEditor({
             }}
           />
         ) : (
-          <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_top,rgba(125,211,252,0.08),transparent_35%)] p-6">
+          <div className="flex h-full min-h-0 items-center justify-center overflow-auto bg-[radial-gradient(circle_at_top,rgba(125,211,252,0.08),transparent_35%)] p-6">
             <div className="max-w-sm rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center">
               <p className="text-sm font-medium text-white">No active editor tab</p>
               <p className="mt-2 text-sm leading-6 text-white/50">

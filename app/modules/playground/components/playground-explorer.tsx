@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  ChevronLeft,
   ChevronRight,
   FileCode2,
   FileJson2,
@@ -66,6 +67,7 @@ type PlaygroundExplorerProps = {
   activeCollaboratorNamesByPath?: Record<string, string[]>;
   canCreateEntries?: boolean;
   canEditPath?: (path: string, kind: "file" | "folder") => boolean;
+  onToggleCollapse?: () => void;
   onSelectFile: (fileId: string) => void;
   onCreateNode: (input: CreateTemplateNodeInput) => Promise<void> | void;
   onRenameNode: (nodePath: string, nextName: string) => Promise<void> | void;
@@ -398,6 +400,7 @@ export function PlaygroundExplorer({
   activeCollaboratorNamesByPath = {},
   canCreateEntries = true,
   canEditPath = () => true,
+  onToggleCollapse,
   onSelectFile,
   onCreateNode,
   onRenameNode,
@@ -489,9 +492,9 @@ export function PlaygroundExplorer({
   };
 
   return (
-    <aside className="flex h-full flex-col border-r border-white/10 bg-[#060b16]">
-      <div className="flex items-center justify-between border-b border-white/10 px-3 py-3">
-        <div>
+    <aside className="flex h-full min-h-0 flex-col overflow-hidden border-r border-white/10 bg-[#060b16]">
+      <div className="flex flex-shrink-0 items-start justify-between gap-3 border-b border-white/10 px-3 py-3">
+        <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">
             Explorer
           </p>
@@ -500,33 +503,45 @@ export function PlaygroundExplorer({
           </p>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex flex-shrink-0 items-center gap-2">
           <Button
             type="button"
-            size="icon-xs"
             variant="ghost"
-            className="rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
+            className="h-7 w-7 rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
             onClick={() => openCreateDialog("file", null)}
             disabled={!canCreateEntries}
+            title="Create file"
           >
             <Plus className="h-3.5 w-3.5" />
             <span className="sr-only">Create file</span>
           </Button>
           <Button
             type="button"
-            size="icon-xs"
             variant="ghost"
-            className="rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
+            className="h-7 w-7 rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
             onClick={() => openCreateDialog("folder", null)}
             disabled={!canCreateEntries}
+            title="Create folder"
           >
             <FolderPlus className="h-3.5 w-3.5" />
             <span className="sr-only">Create folder</span>
           </Button>
+          {onToggleCollapse ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-7 w-7 rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
+              onClick={onToggleCollapse}
+              title="Collapse explorer"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              <span className="sr-only">Collapse explorer</span>
+            </Button>
+          ) : null}
         </div>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea className="ide-scrollbar min-h-0 flex-1">
         <div className="space-y-1 p-3">
           {tree.length ? (
             tree.map((node) => (

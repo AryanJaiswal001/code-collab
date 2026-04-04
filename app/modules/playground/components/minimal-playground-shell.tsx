@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, FolderGit2, RefreshCw, Save, Share2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Eye,
+  FolderGit2,
+  PanelLeft,
+  RefreshCw,
+  Save,
+  Share2,
+  SquareTerminal,
+} from "lucide-react";
 import { toast } from "sonner";
 import { GitHubRepositoryPicker } from "@/app/modules/github/components/github-repository-picker";
 import { useGitHubRepositories } from "@/app/modules/github/hooks/useGitHubRepositories";
@@ -21,18 +30,27 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
+import TerminalComponent, {
+  type TerminalRef,
+} from "../../webcontainers/components/terminal";
+import WebContainerPreview, {
+  getWebContainerRuntimeOutputBuffer,
+} from "../../webcontainers/components/webcontainer-preview";
+import { PanelResizeHandle } from "./panel-resize-handle";
 import { PlaygroundEditor } from "./playground-editor";
 import { PlaygroundExplorer } from "./playground-explorer";
 import { useFileExplorer } from "../hooks/useFileExplorer";
+import { useIdeLayout } from "../hooks/useIdeLayout";
 import { createStarterTemplate, findFileById } from "../lib";
 import type { CreateTemplateNodeInput, TemplateFolder } from "../types";
 import { useWebContainer } from "../../webcontainers/hooks/useWebContainer";
-import WebContainerPreview from "../../webcontainers/components/webcontainer-preview";
 
 type MinimalPlaygroundShellProps = {
   projectId: string;
@@ -128,6 +146,14 @@ export function MinimalPlaygroundShell({
     !initialRepositoryFullName,
   );
   const initialImportAttemptedRef = useRef(false);
+  const terminalRef = useRef<TerminalRef | null>(null);
+  const layout = useIdeLayout({
+    storageKey: `minimal-playground-layout:${projectId}`,
+  });
+  const primaryButtonClass =
+    "rounded-xl border border-blue-500/40 bg-blue-600 text-white shadow-[0_12px_32px_rgba(37,99,235,0.26)] hover:bg-blue-500";
+  const secondaryButtonClass =
+    "rounded-xl border border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10";
 
   const {
     templateData,
@@ -451,6 +477,62 @@ export function MinimalPlaygroundShell({
     };
   }, [activeFileId, handleSaveAllFiles, handleSaveFile]);
 
+  const previewPanel = !isInitialImportResolved && initialRepositoryFullName ? (
+    <ImportingRepositoryPanel repositoryFullName={initialRepositoryFullName} />
+  ) : (
+    <WebContainerPreview
+      templateData={templateData}
+      instance={instance}
+      isLoading={isLoading}
+      error={error?.message ?? null}
+      restartKey={restartKey}
+      onRestart={() => setRestartKey((value) => value + 1)}
+      runtimeKey={projectId}
+      showTerminalPanel={false}
+      terminalRef={terminalRef}
+    />
+  );
+
+  const rightRailContent = (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#050816]">
+      {layout.previewOpen ? (
+        <div className="min-h-[280px] min-w-0 flex-1 overflow-hidden">
+          {previewPanel}
+        </div>
+      ) : null}
+
+      {layout.terminalOpen ? (
+        <>
+          {layout.previewOpen ? (
+            <PanelResizeHandle
+              orientation="horizontal"
+              onResize={(delta) => layout.setTerminalHeight(layout.terminalHeight - delta)}
+              className="border-y border-white/10 bg-[#060b16]"
+            />
+          ) : null}
+          <div
+            className="min-h-[10rem] flex-shrink-0 overflow-hidden"
+            style={{ height: `${layout.terminalHeight}px` }}
+          >
+            <TerminalComponent
+              ref={terminalRef}
+              webContainerInstance={instance}
+              theme="dark"
+              className="h-full border-0"
+              initialOutput={getWebContainerRuntimeOutputBuffer()}
+            />
+          </div>
+        </>
+      ) : null}
+
+      {!layout.previewOpen && !layout.terminalOpen ? (
+        <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-white/45">
+          Enable preview or terminal from the toolbar to open the runtime rail.
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
     <>
       <Dialog
@@ -516,100 +598,139 @@ export function MinimalPlaygroundShell({
       </Dialog>
 
       <main className="h-screen overflow-hidden bg-[#050816] text-white">
-        <div className="flex h-full flex-col">
-          <header className="flex items-center justify-between border-b border-white/10 bg-[#050816]/95 px-4 py-3 backdrop-blur sm:px-5">
-            <div className="flex min-w-0 items-center gap-3">
-              <Link
-                href={backHref}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span className="sr-only">Back</span>
-              </Link>
+        <div className="flex h-full flex-col overflow-hidden">
+          <header className="flex flex-shrink-0 flex-col gap-4 border-b border-white/10 bg-[#050816]/95 px-4 py-3 backdrop-blur sm:px-5">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <Link
+                  href={backHref}
+                  className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className="sr-only">Back</span>
+                </Link>
 
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-white">
-                  {projectName}
-                </p>
-                <p className="truncate text-xs text-white/45">
-                  Workspace {projectId}
-                </p>
-                {(importedRepository || detectedProjectType) ? (
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    {importedRepository ? (
-                      <Badge
-                        variant="outline"
-                        className="border-white/10 bg-white/5 text-white/70"
-                      >
-                        <FolderGit2 className="mr-1 h-3.5 w-3.5" />
-                        {importedRepository.full_name}
-                      </Badge>
-                    ) : null}
-                    {detectedProjectType ? (
-                      <Badge
-                        variant="outline"
-                        className="border-emerald-400/20 bg-emerald-400/10 text-emerald-100"
-                      >
-                        {detectedProjectType}
-                      </Badge>
-                    ) : null}
-                  </div>
-                ) : null}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-white">
+                    {projectName}
+                  </p>
+                  <p className="truncate text-xs text-white/45">
+                    Workspace {projectId}
+                  </p>
+                  {(importedRepository || detectedProjectType) ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {importedRepository ? (
+                        <Badge
+                          variant="outline"
+                          className="border-white/10 bg-white/5 text-white/70"
+                        >
+                          <FolderGit2 className="mr-1 h-3.5 w-3.5" />
+                          {importedRepository.full_name}
+                        </Badge>
+                      ) : null}
+                      {detectedProjectType ? (
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-400/20 bg-emerald-400/10 text-emerald-100"
+                        >
+                          {detectedProjectType}
+                        </Badge>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
-                onClick={handleSaveAllFiles}
-                disabled={!hasDirtyFiles || isImportingRepository}
-              >
-                <Save className="h-4 w-4" />
-                Save all
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
-                onClick={() => setIsImportDialogOpen(true)}
-                disabled={isImportingRepository}
-              >
-                {isImportingRepository ? (
-                  <Spinner className="h-4 w-4" />
-                ) : (
-                  <FolderGit2 className="h-4 w-4" />
-                )}
-                Import from GitHub
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
-              >
-                <Share2 className="h-4 w-4" />
-                Share
-              </Button>
-              <Button
-                type="button"
-                className="bg-white text-black hover:bg-white/90"
-                onClick={() => setRestartKey((value) => value + 1)}
-                disabled={isImportingRepository}
-              >
-                <RefreshCw className="h-4 w-4" />
-                Restart preview
-              </Button>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="rounded-xl px-3 text-white/75 hover:bg-white/10 hover:text-white"
+                    onClick={layout.toggleExplorer}
+                    aria-pressed={
+                      layout.isCompactViewport
+                        ? layout.explorerSheetOpen
+                        : layout.explorerOpen
+                    }
+                  >
+                    <PanelLeft className="h-4 w-4" />
+                    <span className="hidden sm:inline">Explorer</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="rounded-xl px-3 text-white/75 hover:bg-white/10 hover:text-white"
+                    onClick={layout.togglePreview}
+                    aria-pressed={layout.previewOpen}
+                  >
+                    <Eye className="h-4 w-4" />
+                    <span className="hidden sm:inline">Preview</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="rounded-xl px-3 text-white/75 hover:bg-white/10 hover:text-white"
+                    onClick={layout.toggleTerminal}
+                    aria-pressed={layout.terminalOpen}
+                  >
+                    <SquareTerminal className="h-4 w-4" />
+                    <span className="hidden sm:inline">Terminal</span>
+                  </Button>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={secondaryButtonClass}
+                  onClick={handleSaveAllFiles}
+                  disabled={!hasDirtyFiles || isImportingRepository}
+                >
+                  <Save className="h-4 w-4" />
+                  Save all
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={secondaryButtonClass}
+                  onClick={() => setIsImportDialogOpen(true)}
+                  disabled={isImportingRepository}
+                >
+                  {isImportingRepository ? (
+                    <Spinner className="h-4 w-4" />
+                  ) : (
+                    <FolderGit2 className="h-4 w-4" />
+                  )}
+                  Import
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={secondaryButtonClass}
+                >
+                  <Share2 className="h-4 w-4" />
+                  Share
+                </Button>
+                <Button
+                  type="button"
+                  className={primaryButtonClass}
+                  onClick={() => setRestartKey((value) => value + 1)}
+                  disabled={isImportingRepository}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Restart
+                </Button>
+              </div>
             </div>
           </header>
 
-          <div className="flex items-center justify-between border-b border-white/10 bg-[#060b16] px-4 py-2 text-xs text-white/45">
+          <div className="flex flex-shrink-0 flex-col gap-1 border-b border-white/10 bg-[#060b16] px-4 py-2 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between">
             <span>
               {isImportingRepository
                 ? `Importing ${selectedImportRepository?.full_name ?? initialRepositoryFullName ?? "repository"}...`
                 : `${openFiles.length} open tab${openFiles.length === 1 ? "" : "s"} and ${dirtyFileIds.length} unsaved change${dirtyFileIds.length === 1 ? "" : "s"}`}
             </span>
-            <span>
+            <span className="sm:text-right">
               {isImportingRepository
                 ? "GitHub files are loading into the editor and preview."
                 : importedRepository
@@ -622,23 +743,41 @@ export function MinimalPlaygroundShell({
             </span>
           </div>
 
-          <div className="min-h-0 flex-1">
-            <ResizablePanelGroup orientation="horizontal" className="h-full">
-              <ResizablePanel defaultSize={22} minSize={16}>
-                <PlaygroundExplorer
-                  tree={tree}
-                  activeFileId={activeFileId}
-                  dirtyFileIds={dirtyFileIds}
-                  onSelectFile={selectFile}
-                  onCreateNode={handleCreateNode}
-                  onRenameNode={handleRenameNode}
-                  onDeleteNode={handleDeleteNode}
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <div
+              className="hidden h-full min-h-0 lg:grid"
+              style={{ gridTemplateColumns: layout.desktopGridTemplateColumns }}
+            >
+              {layout.explorerOpen ? (
+                <div className="min-h-0 overflow-hidden">
+                  <PlaygroundExplorer
+                    tree={tree}
+                    activeFileId={activeFileId}
+                    dirtyFileIds={dirtyFileIds}
+                    onToggleCollapse={layout.toggleExplorer}
+                    onSelectFile={selectFile}
+                    onCreateNode={handleCreateNode}
+                    onRenameNode={handleRenameNode}
+                    onDeleteNode={handleDeleteNode}
+                  />
+                </div>
+              ) : (
+                <div />
+              )}
+
+              {layout.explorerOpen ? (
+                <PanelResizeHandle
+                  orientation="vertical"
+                  onResize={(delta) =>
+                    layout.setExplorerWidth(layout.explorerWidth + delta)
+                  }
+                  className="border-r border-white/10 bg-[#050816]"
                 />
-              </ResizablePanel>
+              ) : (
+                <div />
+              )}
 
-              <ResizableHandle withHandle className="bg-white/10" />
-
-              <ResizablePanel defaultSize={43} minSize={28}>
+              <div className="min-h-0 min-w-0 overflow-hidden">
                 <PlaygroundEditor
                   openFiles={openFiles}
                   activeFile={activeFile}
@@ -650,30 +789,84 @@ export function MinimalPlaygroundShell({
                   onSaveFile={handleSaveFile}
                   onSaveAllFiles={handleSaveAllFiles}
                 />
-              </ResizablePanel>
+              </div>
 
-              <ResizableHandle withHandle className="bg-white/10" />
+              {layout.isRightRailVisible ? (
+                <PanelResizeHandle
+                  orientation="vertical"
+                  onResize={(delta) =>
+                    layout.setRightRailWidth(layout.rightRailWidth - delta)
+                  }
+                  className="border-l border-white/10 bg-[#050816]"
+                />
+              ) : (
+                <div />
+              )}
 
-              <ResizablePanel defaultSize={35} minSize={24}>
-                {!isInitialImportResolved && initialRepositoryFullName ? (
-                  <ImportingRepositoryPanel
-                    repositoryFullName={initialRepositoryFullName}
-                  />
-                ) : (
-                  <WebContainerPreview
-                    templateData={templateData}
-                    instance={instance}
-                    isLoading={isLoading}
-                    error={error?.message ?? null}
-                    restartKey={restartKey}
-                    onRestart={() => setRestartKey((value) => value + 1)}
-                    runtimeKey={projectId}
-                  />
-                )}
-              </ResizablePanel>
-            </ResizablePanelGroup>
+              {layout.isRightRailVisible ? (
+                <div className="min-h-0 min-w-0 overflow-hidden border-l border-white/10">
+                  {rightRailContent}
+                </div>
+              ) : (
+                <div />
+              )}
+            </div>
+
+            <div className="flex h-full min-h-0 lg:hidden">
+              <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                <PlaygroundEditor
+                  openFiles={openFiles}
+                  activeFile={activeFile}
+                  hasDirtyFiles={hasDirtyFiles}
+                  onSelectFile={selectFile}
+                  onCloseAllFiles={closeAllFiles}
+                  onCloseFile={closeFile}
+                  onChange={updateFileContent}
+                  onSaveFile={handleSaveFile}
+                  onSaveAllFiles={handleSaveAllFiles}
+                />
+              </div>
+            </div>
           </div>
         </div>
+
+        <Sheet open={layout.explorerSheetOpen} onOpenChange={layout.setExplorerSheetOpen}>
+          <SheetContent side="left" className="w-full max-w-sm border-white/10 bg-[#050816] p-0 text-white">
+            <SheetHeader className="border-b border-white/10 px-4 py-4 text-left">
+              <SheetTitle className="text-white">Explorer</SheetTitle>
+              <SheetDescription className="text-white/55">
+                Browse files without squeezing the editor.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <PlaygroundExplorer
+                tree={tree}
+                activeFileId={activeFileId}
+                dirtyFileIds={dirtyFileIds}
+                onToggleCollapse={() => layout.setExplorerSheetOpen(false)}
+                onSelectFile={(fileId) => {
+                  selectFile(fileId);
+                  layout.setExplorerSheetOpen(false);
+                }}
+                onCreateNode={handleCreateNode}
+                onRenameNode={handleRenameNode}
+                onDeleteNode={handleDeleteNode}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        <Sheet open={layout.rightRailSheetOpen} onOpenChange={layout.setRightRailSheetOpen}>
+          <SheetContent side="right" className="w-full max-w-md border-white/10 bg-[#050816] p-0 text-white">
+            <SheetHeader className="border-b border-white/10 px-4 py-4 text-left">
+              <SheetTitle className="text-white">Runtime</SheetTitle>
+              <SheetDescription className="text-white/55">
+                Preview and terminal stay available here on smaller screens.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="min-h-0 flex-1 overflow-hidden">{rightRailContent}</div>
+          </SheetContent>
+        </Sheet>
       </main>
     </>
   );

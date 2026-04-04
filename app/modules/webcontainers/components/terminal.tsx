@@ -208,12 +208,12 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
     return (
       <div
         className={cn(
-          "flex h-full flex-col overflow-hidden border-t border-white/10 bg-[#040714]",
+          "flex h-full min-h-0 flex-col overflow-hidden border-t border-white/10 bg-[#040714]",
           className,
         )}
       >
-        <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.02] px-3 py-2">
-          <div>
+        <div className="flex flex-shrink-0 flex-col gap-3 border-b border-white/10 bg-white/[0.02] px-3 py-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-white/85">Terminal</span>
               <span
@@ -234,7 +234,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
             </span>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex flex-shrink-0 items-center gap-1">
             {showSearch ? (
               <Input
                 value={searchTerm}
@@ -244,7 +244,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
                   searchInTerminal(nextValue);
                 }}
                 placeholder="Search"
-                className="h-7 w-32 border-white/10 bg-white/5 text-xs text-white"
+                className="h-7 w-32 rounded-lg border-white/10 bg-white/5 text-xs text-white"
               />
             ) : null}
 
@@ -252,7 +252,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
               type="button"
               size="icon"
               variant="ghost"
-              className="h-7 w-7 text-white/70 hover:bg-white/10 hover:text-white"
+              className="h-7 w-7 rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
               onClick={() => setShowSearch((value) => !value)}
             >
               <Search className="h-3.5 w-3.5" />
@@ -262,7 +262,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
               type="button"
               size="icon"
               variant="ghost"
-              className="h-7 w-7 text-white/70 hover:bg-white/10 hover:text-white"
+              className="h-7 w-7 rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
               onClick={() => void copyLog()}
             >
               <Copy className="h-3.5 w-3.5" />
@@ -272,7 +272,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
               type="button"
               size="icon"
               variant="ghost"
-              className="h-7 w-7 text-white/70 hover:bg-white/10 hover:text-white"
+              className="h-7 w-7 rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
               onClick={downloadLog}
             >
               <Download className="h-3.5 w-3.5" />
@@ -282,7 +282,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
               type="button"
               size="icon"
               variant="ghost"
-              className="h-7 w-7 text-white/70 hover:bg-white/10 hover:text-white"
+              className="h-7 w-7 rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
               onClick={clearTerminal}
             >
               <Trash2 className="h-3.5 w-3.5" />
