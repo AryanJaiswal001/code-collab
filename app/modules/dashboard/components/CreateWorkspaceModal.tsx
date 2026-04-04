@@ -3,12 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  LayoutGrid,
-  Rocket,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, LayoutGrid, Rocket } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +20,7 @@ import { Progress } from "@/components/ui/progress";
 import { createWorkspace } from "../actions";
 import type { Project, TemplateKind } from "../types";
 import { AccessSharingStep } from "./workspace-wizard/AccessSharingStep";
+import { ProjectBasicsStep } from "./workspace-wizard/ProjectBasicsStep";
 import { ProjectSetupStep } from "./workspace-wizard/ProjectSetupStep";
 import {
   TOTAL_WORKSPACE_STEPS,
@@ -48,12 +44,14 @@ type PersistedWorkspaceWizard = {
 function getStepLabel(step: number) {
   switch (step) {
     case 1:
-      return "Workspace mode";
+      return "Project basics";
     case 2:
-      return "Project setup";
+      return "Workspace mode";
     case 3:
-      return "Workspace rules";
+      return "Project setup";
     case 4:
+      return "Workspace rules";
+    case 5:
       return "Access & sharing";
     default:
       return "Create workspace";
@@ -62,7 +60,8 @@ function getStepLabel(step: number) {
 
 function generateWorkspaceId(draft: WorkspaceDraft) {
   const sourceName =
-    draft.selectedRepository?.name ??
+    draft.projectName.trim() ||
+    draft.selectedRepository?.name ||
     (draft.workspaceMode === "COLLABORATION"
       ? "team-workspace"
       : "personal-workspace");
@@ -81,22 +80,24 @@ function buildShareableLink(workspaceId: string) {
     return `/workspace/${workspaceId}`;
   }
 
-  return new URL(`/workspace/${workspaceId}`, window.location.origin).toString();
+  return new URL(
+    `/workspace/${workspaceId}`,
+    window.location.origin,
+  ).toString();
 }
 
-function buildWorkspacePayload(draft: WorkspaceDraft): {
+function buildWorkspaceObject(draft: WorkspaceDraft): {
   id: string;
-  title: string;
+  name: string;
   description: string;
-  template: TemplateKind;
-  workspaceMode: NonNullable<WorkspaceDraft["workspaceMode"]>;
-  projectSetupMode: NonNullable<WorkspaceDraft["projectSetupMode"]>;
-  workspaceRules: NonNullable<WorkspaceDraft["workspaceRules"]>;
-  repositoryFullName?: string;
+  mode: NonNullable<WorkspaceDraft["workspaceMode"]>;
+  setupType: NonNullable<WorkspaceDraft["projectSetupMode"]>;
+  rules: NonNullable<WorkspaceDraft["workspaceRules"]>;
   collaborators: string[];
 } {
-  const title =
-    draft.selectedRepository?.name ??
+  const name =
+    draft.projectName.trim() ||
+    draft.selectedRepository?.name ||
     (draft.workspaceMode === "COLLABORATION"
       ? "Collaboration workspace"
       : "Personal workspace");
@@ -110,16 +111,40 @@ function buildWorkspacePayload(draft: WorkspaceDraft): {
       : "Lenient collaboration model",
   ];
 
+  const description =
+    draft.projectDescription.trim() || descriptionParts.join(" | ");
+
   return {
     id: draft.workspaceId ?? generateWorkspaceId(draft),
-    title,
-    description: descriptionParts.join(" | "),
-    template: draft.projectSetupMode === "GITHUB" ? "GITHUB" : "NEXTJS",
-    workspaceMode: draft.workspaceMode ?? "PERSONAL",
-    projectSetupMode: draft.projectSetupMode ?? "TEMPLATE",
-    workspaceRules: draft.workspaceRules ?? "STRICT",
-    repositoryFullName: draft.selectedRepository?.fullName,
+    name,
+    description,
+    mode: draft.workspaceMode ?? "PERSONAL",
+    setupType: draft.projectSetupMode ?? "TEMPLATE",
+    rules: draft.workspaceRules ?? "STRICT",
     collaborators: draft.inviteEmails,
+  };
+}
+
+function buildWorkspacePayload(draft: WorkspaceDraft): {
+  id: string;
+  name: string;
+  description: string;
+  mode: NonNullable<WorkspaceDraft["workspaceMode"]>;
+  setupType: NonNullable<WorkspaceDraft["projectSetupMode"]>;
+  rules: NonNullable<WorkspaceDraft["workspaceRules"]>;
+  template: TemplateKind;
+  repositoryFullName?: string;
+  collaborators: string[];
+} {
+  const workspace = buildWorkspaceObject(draft);
+
+  return {
+    ...workspace,
+    template:
+      draft.projectSetupMode === "GITHUB"
+        ? "GITHUB"
+        : (draft.selectedTemplate ?? "NEXTJS"),
+    repositoryFullName: draft.selectedRepository?.fullName,
   };
 }
 
@@ -162,7 +187,7 @@ export default function CreateWorkspaceModal({
         };
 
         setDraft(nextDraft);
-        setCurrentStep(githubConnected ? 2 : parsed.currentStep || 2);
+        setCurrentStep(githubConnected ? 3 : parsed.currentStep || 1);
         setOpen(true);
       } catch {
         window.sessionStorage.removeItem(WORKSPACE_WIZARD_STORAGE_KEY);
@@ -212,21 +237,31 @@ export default function CreateWorkspaceModal({
       projectSetupMode: "GITHUB" as const,
     };
 
-    persistWizardState(nextDraft, 2);
+    persistWizardState(nextDraft, 3);
     await signIn("github", {
       callbackUrl: `${pathname}?createWorkspace=1&github=connected`,
     });
   };
 
   const goToNextStep = () => {
-    if (currentStep === 1 && !draft.workspaceMode) {
+    if (currentStep === 1 && !draft.projectName.trim()) {
+      toast.error("Project name is required to continue.");
+      return;
+    }
+
+    if (currentStep === 2 && !draft.workspaceMode) {
       toast.error("Choose a workspace mode to continue.");
       return;
     }
 
-    if (currentStep === 2) {
+    if (currentStep === 3) {
       if (!draft.projectSetupMode) {
         toast.error("Choose how you want to set up the workspace.");
+        return;
+      }
+
+      if (draft.projectSetupMode === "TEMPLATE" && !draft.selectedTemplate) {
+        toast.error("Choose a template to continue.");
         return;
       }
 
@@ -241,7 +276,7 @@ export default function CreateWorkspaceModal({
       }
     }
 
-    if (currentStep === 3) {
+    if (currentStep === 4) {
       if (!draft.workspaceRules) {
         toast.error("Choose a rule mode to continue.");
         return;
@@ -255,7 +290,7 @@ export default function CreateWorkspaceModal({
         workspaceId,
         shareableLink,
       }));
-      setCurrentStep(4);
+      setCurrentStep(5);
       return;
     }
 
@@ -324,14 +359,18 @@ export default function CreateWorkspaceModal({
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 600));
-      toast.success(`Mock invites sent to ${draft.inviteEmails.length} people.`);
+      toast.success(
+        `Mock invites sent to ${draft.inviteEmails.length} people.`,
+      );
     } finally {
       setIsSendingInvites(false);
     }
   };
 
   const handleCreateWorkspace = async () => {
-    if (!draft.workspaceId) {
+    const workspaceObject = buildWorkspaceObject(draft);
+
+    if (!workspaceObject.id) {
       toast.error("Workspace details are not ready yet.");
       return;
     }
@@ -339,7 +378,9 @@ export default function CreateWorkspaceModal({
     setIsSubmitting(true);
 
     try {
-      const createdWorkspace = await createWorkspace(buildWorkspacePayload(draft));
+      const createdWorkspace = await createWorkspace(
+        buildWorkspacePayload(draft),
+      );
 
       if (createdWorkspace && onCreateProject) {
         await onCreateProject(createdWorkspace);
@@ -347,7 +388,7 @@ export default function CreateWorkspaceModal({
 
       toast.success("Workspace created successfully.");
       handleOpenChange(false);
-      router.push(`/workspace/${draft.workspaceId}`);
+      router.push(`/workspace/${workspaceObject.id}`);
     } catch {
       toast.error("Failed to create workspace.");
     } finally {
@@ -355,9 +396,40 @@ export default function CreateWorkspaceModal({
     }
   };
 
+  const isNextDisabled = useMemo(() => {
+    if (currentStep === 1) {
+      return !draft.projectName.trim();
+    }
+
+    return false;
+  }, [currentStep, draft.projectName]);
+
   const renderStep = () => {
     switch (currentStep) {
       case 1:
+        return (
+          <ProjectBasicsStep
+            projectName={draft.projectName}
+            projectDescription={draft.projectDescription}
+            onProjectNameChange={(projectName) =>
+              setDraft((prev) => ({
+                ...prev,
+                projectName,
+                workspaceId: null,
+                shareableLink: "",
+              }))
+            }
+            onProjectDescriptionChange={(projectDescription) =>
+              setDraft((prev) => ({
+                ...prev,
+                projectDescription,
+                workspaceId: null,
+                shareableLink: "",
+              }))
+            }
+          />
+        );
+      case 2:
         return (
           <WorkspaceModeStep
             value={draft.workspaceMode}
@@ -371,25 +443,39 @@ export default function CreateWorkspaceModal({
             }
           />
         );
-      case 2:
+      case 3:
         return (
           <ProjectSetupStep
             value={draft.projectSetupMode}
             githubConnected={draft.githubConnected}
             selectedRepository={draft.selectedRepository}
+            selectedTemplate={draft.selectedTemplate}
             onChange={(projectSetupMode) =>
               setDraft((prev) => ({
                 ...prev,
                 projectSetupMode,
-                githubConnected:
-                  projectSetupMode === "GITHUB" ? prev.githubConnected : false,
+                githubConnected: prev.githubConnected,
+                selectedTemplate:
+                  projectSetupMode === "TEMPLATE"
+                    ? prev.selectedTemplate
+                    : null,
                 selectedRepository:
-                  projectSetupMode === "GITHUB" ? prev.selectedRepository : null,
+                  projectSetupMode === "GITHUB"
+                    ? prev.selectedRepository
+                    : null,
                 workspaceId: null,
                 shareableLink: "",
               }))
             }
             onConnectGitHub={() => void handleConnectGitHub()}
+            onSelectTemplate={(selectedTemplate) =>
+              setDraft((prev) => ({
+                ...prev,
+                selectedTemplate,
+                workspaceId: null,
+                shareableLink: "",
+              }))
+            }
             onSelectRepository={(selectedRepository) =>
               setDraft((prev) => ({
                 ...prev,
@@ -401,7 +487,7 @@ export default function CreateWorkspaceModal({
             }
           />
         );
-      case 3:
+      case 4:
         return (
           <WorkspaceRulesStep
             value={draft.workspaceRules}
@@ -415,7 +501,7 @@ export default function CreateWorkspaceModal({
             }
           />
         );
-      case 4:
+      case 5:
         return (
           <AccessSharingStep
             draft={draft}
@@ -479,7 +565,9 @@ export default function CreateWorkspaceModal({
               type="button"
               variant="outline"
               onClick={
-                currentStep === 1 ? () => handleOpenChange(false) : goToPreviousStep
+                currentStep === 1
+                  ? () => handleOpenChange(false)
+                  : goToPreviousStep
               }
               className="rounded-2xl px-5"
             >
@@ -491,6 +579,7 @@ export default function CreateWorkspaceModal({
               <Button
                 type="button"
                 onClick={goToNextStep}
+                disabled={isNextDisabled}
                 className="rounded-2xl px-5"
               >
                 Next

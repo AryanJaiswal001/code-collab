@@ -15,6 +15,7 @@ model User {
   image         String?
   accounts      Account[]
   sessions      Session[]
+  ownedPlaygrounds Playground[] @relation("PlaygroundOwner")
 }
 
 model Account {
@@ -42,4 +43,46 @@ model Session {
   userId       String   @db.ObjectId
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum WorkspaceMode {
+  PERSONAL
+  COLLABORATION
+}
+
+enum PlaygroundSetupType {
+  TEMPLATE
+  GITHUB
+}
+
+enum WorkspaceRulesMode {
+  STRICT
+  LENIENT
+}
+
+enum PlaygroundTemplate {
+  REACT
+  NEXTJS
+  EXPRESS
+  VUE
+  HONO
+  ANGULAR
+  GITHUB
+}
+
+model Playground {
+  id                 String              @id @default(auto()) @map("_id") @db.ObjectId
+  name               String
+  description        String?
+  mode               WorkspaceMode
+  setupType          PlaygroundSetupType
+  rules              WorkspaceRulesMode
+  template           PlaygroundTemplate
+  workspaceLink      String              @unique
+  repositoryFullName String?
+  collaborators      String[]
+  ownerId            String              @db.ObjectId
+  owner              User                @relation("PlaygroundOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }

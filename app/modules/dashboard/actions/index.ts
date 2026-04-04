@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { auth } from "@/auth";
 import type { Project, TemplateKind } from "../types";
 
 let mockProjects: Project[] = [];
@@ -47,6 +48,13 @@ export async function createPlayground(data: {
   repositoryFullName?: string;
   collaborators?: string[];
 }) {
+  const session = await auth();
+  const sessionUser = session?.user;
+  const ownerId =
+    (sessionUser as { id?: string } | undefined)?.id ??
+    sessionUser?.email ??
+    "anonymous-user";
+
   const project: Project = {
     id: data.id ?? makeProjectId(data.title),
     title: data.title.trim(),
@@ -59,12 +67,12 @@ export async function createPlayground(data: {
     collaborators: data.collaborators ?? [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    userId: "user-1",
+    userId: ownerId,
     Starmark: [],
     user: {
-      name: "Code Collab Team",
-      email: "team@codecollab.dev",
-      image: "",
+      name: sessionUser?.name ?? "Code Collab Team",
+      email: sessionUser?.email ?? "team@codecollab.dev",
+      image: sessionUser?.image ?? "",
     },
   };
 
@@ -76,16 +84,26 @@ export async function createPlayground(data: {
 
 export async function createWorkspace(data: {
   id?: string;
-  title: string;
-  template: TemplateKind;
+  name: string;
   description?: string;
-  workspaceMode: "PERSONAL" | "COLLABORATION";
-  projectSetupMode: "TEMPLATE" | "GITHUB";
-  workspaceRules: "STRICT" | "LENIENT";
+  mode: "PERSONAL" | "COLLABORATION";
+  setupType: "TEMPLATE" | "GITHUB";
+  rules: "STRICT" | "LENIENT";
+  template: TemplateKind;
   repositoryFullName?: string;
   collaborators?: string[];
 }) {
-  return createPlayground(data);
+  return createPlayground({
+    id: data.id,
+    title: data.name,
+    template: data.template,
+    description: data.description,
+    workspaceMode: data.mode,
+    projectSetupMode: data.setupType,
+    workspaceRules: data.rules,
+    repositoryFullName: data.repositoryFullName,
+    collaborators: data.collaborators,
+  });
 }
 
 export async function getProjectById(id: string) {
