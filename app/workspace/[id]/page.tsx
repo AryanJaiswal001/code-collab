@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, Github, Shield, Users2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, FolderGit2, Shield, Users2 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getProjectById } from "@/app/modules/dashboard/actions";
@@ -44,7 +44,7 @@ export default async function WorkspacePage({
         : "Access protected";
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.10),_transparent_35%)] px-4 py-6 sm:px-6 lg:px-10">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.10),transparent_35%)] px-4 py-6 sm:px-6 lg:px-10">
       <div className="mx-auto max-w-7xl space-y-6">
         <Card className="rounded-[2rem] border-border/70 bg-card/90 shadow-none">
           <CardContent className="flex flex-col gap-5 p-6 lg:flex-row lg:items-center lg:justify-between">
@@ -105,7 +105,7 @@ export default async function WorkspacePage({
               {workspace?.repositoryFullName ? (
                 <div className="rounded-[1.5rem] border border-border/70 bg-muted/25 p-4">
                   <div className="flex items-center gap-2 font-medium text-foreground">
-                    <Github className="h-4 w-4" />
+                    <FolderGit2 className="h-4 w-4" />
                     Imported repository
                   </div>
                   <p className="mt-2">{workspace.repositoryFullName}</p>
