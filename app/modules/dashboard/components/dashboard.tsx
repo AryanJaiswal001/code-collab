@@ -5,7 +5,12 @@ import { toast } from "sonner";
 import AddNewButton from "./add-new";
 import EmptyState from "./empty-state";
 import ProjectTable from "./project-table";
-import type { DashboardProject, Project, TemplateKind } from "../types";
+import type {
+  DashboardProject,
+  Project,
+  SidebarProject,
+  TemplateKind,
+} from "../types";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 interface DashboardProps {
@@ -22,6 +27,15 @@ const templateLabels: Record<TemplateKind, string> = {
   ANGULAR: "Angular",
 };
 
+const templateIcons: Record<TemplateKind, string> = {
+  NEXTJS: "LightBulb",
+  REACT: "Zap",
+  EXPRESS: "Database",
+  VUE: "Compass",
+  HONO: "FlameIcon",
+  ANGULAR: "Terminal",
+};
+
 const toDashboardProject = (project: Project): DashboardProject => ({
   id: project.id,
   name: project.title,
@@ -29,6 +43,13 @@ const toDashboardProject = (project: Project): DashboardProject => ({
   techStack: templateLabels[project.template],
   updatedAt: project.updatedAt,
   isStarred: project.Starmark[0]?.isMarked ?? false,
+});
+
+const toSidebarProject = (project: Project): SidebarProject => ({
+  id: project.id,
+  name: project.title,
+  starred: project.Starmark[0]?.isMarked ?? false,
+  icon: templateIcons[project.template] || "Code",
 });
 
 const Dashboard = ({
@@ -44,6 +65,11 @@ const Dashboard = ({
 
   const handleCreateProject = async (project: Project) => {
     setProjects((prev) => [toDashboardProject(project), ...prev]);
+    window.dispatchEvent(
+      new CustomEvent("dashboard:project-created", {
+        detail: toSidebarProject(project),
+      }),
+    );
     toast.success("Project created successfully");
   };
 
@@ -61,11 +87,19 @@ const Dashboard = ({
         project.id === projectId ? { ...project, name: renamed } : project,
       ),
     );
+    window.dispatchEvent(
+      new CustomEvent("dashboard:project-renamed", {
+        detail: { id: projectId, name: renamed },
+      }),
+    );
     toast.success("Project renamed");
   };
 
   const handleToggleStarProject = (projectId: string) => {
-    let nextStarState = false;
+    const currentProject = projects.find((project) => project.id === projectId);
+    if (!currentProject) return;
+
+    const nextStarState = !currentProject.isStarred;
 
     setProjects((prev) =>
       prev.map((project) => {
@@ -73,7 +107,6 @@ const Dashboard = ({
           return project;
         }
 
-        nextStarState = !project.isStarred;
         return {
           ...project,
           isStarred: nextStarState,
@@ -81,11 +114,25 @@ const Dashboard = ({
       }),
     );
 
+    window.dispatchEvent(
+      new CustomEvent("dashboard:project-star-toggled", {
+        detail: { id: projectId, starred: nextStarState },
+      }),
+    );
+
     toast.success(nextStarState ? "Project starred" : "Project unstarred");
   };
 
   const handleDeleteProject = (projectId: string) => {
+    const projectExists = projects.some((project) => project.id === projectId);
+    if (!projectExists) return;
+
     setProjects((prev) => prev.filter((project) => project.id !== projectId));
+    window.dispatchEvent(
+      new CustomEvent("dashboard:project-deleted", {
+        detail: { id: projectId },
+      }),
+    );
     toast.success("Project deleted");
   };
 

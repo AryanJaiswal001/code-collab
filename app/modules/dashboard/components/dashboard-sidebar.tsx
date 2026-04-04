@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -41,6 +41,7 @@ interface PlaygroundData {
 
 const lucideIconMap: Record<string, LucideIcon> = {
   Zap,
+  LightBulb: Globe,
   Lightbulb: Globe,
   Database,
   Compass: FolderKanban,
@@ -56,9 +57,93 @@ export function DashboardSidebar({
   initialPlaygroundData: PlaygroundData[];
 }) {
   const pathname = usePathname();
+  const [playgroundData, setPlaygroundData] = useState<PlaygroundData[]>(
+    () => initialPlaygroundData,
+  );
+
+  useEffect(() => {
+    const handleProjectCreated = (event: Event) => {
+      const { detail } = event as CustomEvent<PlaygroundData>;
+      if (!detail?.id) return;
+
+      setPlaygroundData((prev) => {
+        const exists = prev.some((project) => project.id === detail.id);
+        if (exists) {
+          return prev.map((project) =>
+            project.id === detail.id ? { ...project, ...detail } : project,
+          );
+        }
+
+        return [detail, ...prev];
+      });
+    };
+
+    const handleProjectRenamed = (event: Event) => {
+      const { detail } = event as CustomEvent<{ id: string; name: string }>;
+      if (!detail?.id || !detail.name) return;
+
+      setPlaygroundData((prev) =>
+        prev.map((project) =>
+          project.id === detail.id
+            ? { ...project, name: detail.name }
+            : project,
+        ),
+      );
+    };
+
+    const handleProjectStarToggled = (event: Event) => {
+      const { detail } = event as CustomEvent<{ id: string; starred: boolean }>;
+      if (!detail?.id) return;
+
+      setPlaygroundData((prev) =>
+        prev.map((project) =>
+          project.id === detail.id
+            ? { ...project, starred: detail.starred }
+            : project,
+        ),
+      );
+    };
+
+    const handleProjectDeleted = (event: Event) => {
+      const { detail } = event as CustomEvent<{ id: string }>;
+      if (!detail?.id) return;
+
+      setPlaygroundData((prev) =>
+        prev.filter((project) => project.id !== detail.id),
+      );
+    };
+
+    window.addEventListener("dashboard:project-created", handleProjectCreated);
+    window.addEventListener("dashboard:project-renamed", handleProjectRenamed);
+    window.addEventListener(
+      "dashboard:project-star-toggled",
+      handleProjectStarToggled,
+    );
+    window.addEventListener("dashboard:project-deleted", handleProjectDeleted);
+
+    return () => {
+      window.removeEventListener(
+        "dashboard:project-created",
+        handleProjectCreated,
+      );
+      window.removeEventListener(
+        "dashboard:project-renamed",
+        handleProjectRenamed,
+      );
+      window.removeEventListener(
+        "dashboard:project-star-toggled",
+        handleProjectStarToggled,
+      );
+      window.removeEventListener(
+        "dashboard:project-deleted",
+        handleProjectDeleted,
+      );
+    };
+  }, []);
+
   const starredPlaygrounds = useMemo(
-    () => initialPlaygroundData.filter((project) => project.starred),
-    [initialPlaygroundData],
+    () => playgroundData.filter((project) => project.starred),
+    [playgroundData],
   );
 
   return (
@@ -83,7 +168,11 @@ export function DashboardSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === "/"} tooltip="Home">
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === "/"}
+                  tooltip="Home"
+                >
                   <Link href="/">
                     <Home className="h-4 w-4" />
                     <span>Home</span>
@@ -160,7 +249,7 @@ export function DashboardSidebar({
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {initialPlaygroundData.map((playground) => {
+              {playgroundData.map((playground) => {
                 const IconComponent = lucideIconMap[playground.icon] || Code2;
 
                 return (
