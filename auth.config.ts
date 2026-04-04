@@ -16,7 +16,26 @@ export const authConfig = {
   pages: {
     signIn: "/auth/sign-in",
   },
+  trustHost: true,
   session: {
     strategy: "jwt",
+  },
+  callbacks: {
+    redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      }
+
+      try {
+        const targetUrl = new URL(url);
+        if (targetUrl.origin === baseUrl) {
+          return url;
+        }
+      } catch {
+        return baseUrl;
+      }
+
+      return baseUrl;
+    },
   },
 } satisfies NextAuthConfig;

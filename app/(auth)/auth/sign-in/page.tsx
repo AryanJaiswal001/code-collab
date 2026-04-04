@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,16 +12,50 @@ import {
 } from "@/components/ui/card";
 import { ArrowLeft, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
+
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  AccessDenied: "Access was denied. Please try again.",
+  CallbackRouteError: "The sign-in callback failed. Please try again.",
+  Configuration: "Authentication is not configured correctly yet.",
+  Default: "Sign-in failed. Please try again.",
+  OAuthAccountNotLinked:
+    "That email is already linked to another sign-in method.",
+};
 
 export default function SignInPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const requestedCallbackUrl = searchParams.get("callbackUrl");
+  const errorCode = searchParams.get("error");
   const callbackUrl =
     requestedCallbackUrl && requestedCallbackUrl.startsWith("/")
       ? requestedCallbackUrl
       : "/dashboard";
+  const errorMessage = errorCode
+    ? AUTH_ERROR_MESSAGES[errorCode] ?? AUTH_ERROR_MESSAGES.Default
+    : null;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function redirectAuthenticatedUser() {
+      const session = await getSession();
+
+      if (!cancelled && session?.user) {
+        router.replace(callbackUrl);
+        router.refresh();
+      }
+    }
+
+    void redirectAuthenticatedUser();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [callbackUrl, router]);
 
   return (
     <Card className="w-full max-w-md">
@@ -38,6 +73,12 @@ export default function SignInPage() {
       </CardHeader>
 
       <CardContent className="grid gap-4">
+        {errorMessage ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
+            {errorMessage}
+          </div>
+        ) : null}
+
         <Button
           type="button"
           variant="outline"

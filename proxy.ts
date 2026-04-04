@@ -4,10 +4,32 @@ import { authConfig } from "./auth.config";
 
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_ROUTES = new Set(["/", "/home", "/auth/sign-in"]);
+const PUBLIC_ROUTES = new Set(["/", "/home", "/auth/sign-in", "/auth/error"]);
+
+function getCanonicalAuthOrigin() {
+  const authUrl = process.env.AUTH_URL?.trim();
+
+  if (!authUrl) {
+    return null;
+  }
+
+  try {
+    return new URL(authUrl).origin;
+  } catch {
+    return null;
+  }
+}
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
+  const canonicalOrigin = getCanonicalAuthOrigin();
+
+  if (canonicalOrigin && req.nextUrl.origin !== canonicalOrigin) {
+    return NextResponse.redirect(
+      new URL(`${pathname}${req.nextUrl.search}`, canonicalOrigin),
+    );
+  }
+
   const isAuthenticated = !!req.auth;
   const isSignInPage = pathname === "/auth/sign-in";
   const requestedCallbackUrl = req.nextUrl.searchParams.get("callbackUrl");
