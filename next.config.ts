@@ -15,7 +15,13 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["@base-ui/react", "@hugeicons/react", "radix-ui"],
   },
-  serverExternalPackages: ["nodemailer", "socket.io"],
+  serverExternalPackages: [
+    "@auth/core",
+    "@auth/prisma-adapter",
+    "next-auth",
+    "nodemailer",
+    "socket.io",
+  ],
   async headers() {
     return [
       {

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { signOut } from "@/auth";
 import {
   createWorkspaceRecord,
   deleteWorkspace,
@@ -108,4 +109,8 @@ export async function editProjectById(
 
 export async function duplicateProjectById() {
   throw new Error("Workspace duplication is not available yet.");
+}
+
+export async function logoutDashboardUser() {
+  await signOut({ redirectTo: "/auth/sign-in" });
 }

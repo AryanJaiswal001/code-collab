@@ -528,8 +528,8 @@ export default function CreateWorkspaceModal({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-[2rem] sm:max-w-4xl">
-        <DialogHeader className="space-y-4">
+      <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden rounded-[2rem] p-0 sm:max-w-4xl">
+        <DialogHeader className="shrink-0 space-y-4 px-6 pt-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-2">
               <Badge variant="outline" className="rounded-full px-3 py-1">
@@ -554,14 +554,16 @@ export default function CreateWorkspaceModal({
           </div>
         </DialogHeader>
 
-        <div
-          key={currentStep}
-          className="animate-in fade-in-0 slide-in-from-right-2 duration-300"
-        >
-          {renderStep()}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+          <div
+            key={currentStep}
+            className="animate-in fade-in-0 slide-in-from-right-2 duration-300"
+          >
+            {renderStep()}
+          </div>
         </div>
 
-        <DialogFooter className="border-t border-border/70 pt-4">
+        <DialogFooter className="shrink-0 border-t border-border/70 bg-background px-6 py-4">
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Button
               type="button"

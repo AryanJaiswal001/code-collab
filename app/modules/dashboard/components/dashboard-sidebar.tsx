@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
 import {
   ChevronsUpDown,
   Code2,
@@ -43,6 +43,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { logoutDashboardUser } from "@/app/modules/dashboard/actions";
 import { cn } from "@/lib/utils";
 
 interface PlaygroundData {
@@ -105,6 +106,19 @@ function getInitials(value: string) {
   return words.map((word) => word[0]?.toUpperCase() ?? "").join("");
 }
 
+function LogoutMenuItem() {
+  const { pending } = useFormStatus();
+
+  return (
+    <DropdownMenuItem asChild variant="destructive" disabled={pending}>
+      <button type="submit" disabled={pending}>
+        <LogOut className="h-4 w-4" />
+        <span>{pending ? "Logging out..." : "Logout"}</span>
+      </button>
+    </DropdownMenuItem>
+  );
+}
+
 export function DashboardSidebar({
   initialPlaygroundData,
   currentUser,
@@ -117,7 +131,6 @@ export function DashboardSidebar({
   const [playgroundData, setPlaygroundData] = useState<PlaygroundData[]>(
     () => initialPlaygroundData,
   );
-  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const displayName = getDisplayName(currentUser);
   const displayHandle = getDisplayHandle(currentUser);
@@ -208,16 +221,6 @@ export function DashboardSidebar({
     () => playgroundData.filter((project) => project.starred),
     [playgroundData],
   );
-
-  const handleSignOut = async () => {
-    try {
-      setIsSigningOut(true);
-      await signOut({ redirectTo: "/auth/sign-in" });
-    } catch {
-      setIsSigningOut(false);
-      window.location.assign("/auth/sign-in");
-    }
-  };
 
   return (
     <Sidebar variant="inset" collapsible="icon" className="border-r">
@@ -430,16 +433,9 @@ export function DashboardSidebar({
                       </Link>
                     </DropdownMenuItem>
 
-                    <DropdownMenuItem
-                      variant="destructive"
-                      disabled={isSigningOut}
-                      onSelect={() => {
-                        void handleSignOut();
-                      }}
-                    >
-                      <LogOut className="h-4 w-4" />
-                      <span>{isSigningOut ? "Logging out..." : "Logout"}</span>
-                    </DropdownMenuItem>
+                    <form action={logoutDashboardUser}>
+                      <LogoutMenuItem />
+                    </form>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (

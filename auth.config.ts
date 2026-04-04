@@ -73,6 +73,7 @@ export const authConfig = {
   ],
   pages: {
     signIn: "/auth/sign-in",
+    error: "/auth/error",
   },
   trustHost: true,
   session: {
