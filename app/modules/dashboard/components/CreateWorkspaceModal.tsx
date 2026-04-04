@@ -166,8 +166,9 @@ export default function CreateWorkspaceModal({
   );
 
   useEffect(() => {
-    const shouldRestore = searchParams.get("createWorkspace") === "1";
-    const githubConnected = searchParams.get("github") === "connected";
+    const safePathname = pathname ?? "/dashboard";
+    const shouldRestore = searchParams?.get("createWorkspace") === "1";
+    const githubConnected = searchParams?.get("github") === "connected";
 
     if (!shouldRestore && !githubConnected) {
       return;
@@ -194,12 +195,12 @@ export default function CreateWorkspaceModal({
       }
     }
 
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.delete("createWorkspace");
     params.delete("github");
 
     const nextQuery = params.toString();
-    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+    const nextUrl = nextQuery ? `${safePathname}?${nextQuery}` : safePathname;
     router.replace(nextUrl, { scroll: false });
   }, [pathname, router, searchParams]);
 
@@ -358,9 +359,9 @@ export default function CreateWorkspaceModal({
     setIsSendingInvites(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      await new Promise((resolve) => setTimeout(resolve, 300));
       toast.success(
-        `Mock invites sent to ${draft.inviteEmails.length} people.`,
+        `Invite list is ready. Emails will be created when the workspace is opened.`,
       );
     } finally {
       setIsSendingInvites(false);

@@ -1,40 +1,28 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
-import type { Project, TemplateKind } from "../types";
+import {
+  createWorkspaceRecord,
+  deleteWorkspace,
+  getAllWorkspaceProjectsForCurrentUser,
+  getWorkspaceProjectByLink,
+  renameWorkspace,
+  toggleWorkspaceStar,
+} from "@/app/modules/workspaces/server";
+import type { TemplateKind } from "../types";
 
-let mockProjects: Project[] = [];
-
-function makeProjectId(title: string) {
-  const slug = title
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return `${slug || "project"}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-export async function getAllPlaygroundForUser(): Promise<Project[]> {
-  return [...mockProjects].sort((a, b) =>
-    b.updatedAt.localeCompare(a.updatedAt),
-  );
+export async function getAllPlaygroundForUser() {
+  return getAllWorkspaceProjectsForCurrentUser();
 }
 
 export async function toggleStarMarked(id: string, markedForRevision: boolean) {
-  mockProjects = mockProjects.map((project) =>
-    project.id === id
-      ? {
-          ...project,
-          Starmark: markedForRevision ? [{ isMarked: true }] : [],
-          updatedAt: new Date().toISOString(),
-        }
-      : project,
-  );
+  const result = await toggleWorkspaceStar({
+    workspaceLink: id,
+    isStarred: markedForRevision,
+  });
 
   revalidatePath("/dashboard");
-  return { success: true, isMarked: markedForRevision };
+  return result;
 }
 
 export async function createPlayground(data: {
@@ -48,35 +36,18 @@ export async function createPlayground(data: {
   repositoryFullName?: string;
   collaborators?: string[];
 }) {
-  const session = await auth();
-  const sessionUser = session?.user;
-  const ownerId =
-    (sessionUser as { id?: string } | undefined)?.id ??
-    sessionUser?.email ??
-    "anonymous-user";
-
-  const project: Project = {
-    id: data.id ?? makeProjectId(data.title),
-    title: data.title.trim(),
-    description: data.description?.trim() || "No description provided yet.",
+  const project = await createWorkspaceRecord({
+    id: data.id ?? data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    name: data.title,
+    description: data.description,
+    mode: data.workspaceMode ?? "PERSONAL",
+    setupType: data.projectSetupMode ?? "TEMPLATE",
+    rules: data.workspaceRules ?? "STRICT",
     template: data.template,
-    workspaceMode: data.workspaceMode,
-    projectSetupMode: data.projectSetupMode,
-    workspaceRules: data.workspaceRules,
     repositoryFullName: data.repositoryFullName,
-    collaborators: data.collaborators ?? [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    userId: ownerId,
-    Starmark: [],
-    user: {
-      name: sessionUser?.name ?? "Code Collab Team",
-      email: sessionUser?.email ?? "team@codecollab.dev",
-      image: sessionUser?.image ?? "",
-    },
-  };
+    collaborators: data.collaborators,
+  });
 
-  mockProjects = [project, ...mockProjects];
   revalidatePath("/dashboard");
   revalidatePath(`/workspace/${project.id}`);
   return project;
@@ -93,65 +64,48 @@ export async function createWorkspace(data: {
   repositoryFullName?: string;
   collaborators?: string[];
 }) {
-  return createPlayground({
-    id: data.id,
-    title: data.name,
-    template: data.template,
+  const project = await createWorkspaceRecord({
+    id: data.id ?? data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    name: data.name,
     description: data.description,
-    workspaceMode: data.mode,
-    projectSetupMode: data.setupType,
-    workspaceRules: data.rules,
+    mode: data.mode,
+    setupType: data.setupType,
+    rules: data.rules,
+    template: data.template,
     repositoryFullName: data.repositoryFullName,
     collaborators: data.collaborators,
   });
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/workspace/${project.id}`);
+  return project;
 }
 
 export async function getProjectById(id: string) {
-  return mockProjects.find((project) => project.id === id) ?? null;
+  return getWorkspaceProjectByLink(id);
 }
 
 export async function deleteProjectById(id: string) {
-  mockProjects = mockProjects.filter((project) => project.id !== id);
+  const result = await deleteWorkspace(id);
   revalidatePath("/dashboard");
-  return { success: true };
+  return result;
 }
 
 export async function editProjectById(
   id: string,
   data: { title: string; description: string },
 ) {
-  mockProjects = mockProjects.map((project) =>
-    project.id === id
-      ? {
-          ...project,
-          title: data.title.trim(),
-          description: data.description.trim(),
-          updatedAt: new Date().toISOString(),
-        }
-      : project,
-  );
+  const project = await renameWorkspace({
+    workspaceLink: id,
+    title: data.title,
+    description: data.description,
+  });
 
   revalidatePath("/dashboard");
-  return mockProjects.find((project) => project.id === id) ?? null;
+  revalidatePath(`/workspace/${id}`);
+  return project;
 }
 
-export async function duplicateProjectById(id: string) {
-  const originalProject = mockProjects.find((project) => project.id === id);
-
-  if (!originalProject) {
-    throw new Error("Original playground not found");
-  }
-
-  const duplicatedProject: Project = {
-    ...originalProject,
-    id: makeProjectId(`${originalProject.title}-copy`),
-    title: `${originalProject.title} Copy`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    Starmark: [],
-  };
-
-  mockProjects = [duplicatedProject, ...mockProjects];
-  revalidatePath("/dashboard");
-  return duplicatedProject;
+export async function duplicateProjectById() {
+  throw new Error("Workspace duplication is not available yet.");
 }

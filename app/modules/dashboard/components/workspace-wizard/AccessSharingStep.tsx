@@ -129,8 +129,9 @@ export function AccessSharingStep({
             Collaborator invites
           </div>
           <p className="text-sm leading-6 text-muted-foreground">
-            Add one or more email addresses and send a mock invite batch for
-            demo purposes.
+            Add one or more email addresses now. The workspace will create the
+            invite links on launch, and managers can send more from the
+            collaboration panel later.
           </p>
         </div>
 
@@ -191,7 +192,7 @@ export function AccessSharingStep({
           disabled={isSendingInvites}
           onClick={() => void onSendInvites()}
         >
-          {isSendingInvites ? "Sending..." : "Send Invites"}
+          {isSendingInvites ? "Preparing..." : "Review Invite List"}
         </Button>
       </div>
     </div>

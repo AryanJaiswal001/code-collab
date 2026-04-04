@@ -178,6 +178,38 @@ export function useFileExplorer(initialTemplate: TemplateFolder) {
     });
   }, []);
 
+  const replaceFileContent = useCallback((
+    fileId: string,
+    nextContent: string,
+    options: {
+      activate?: boolean;
+      markSaved?: boolean;
+      openIfNeeded?: boolean;
+    } = {},
+  ) => {
+    setTemplateData((currentTemplate) =>
+      updateTemplateFileContent(currentTemplate, fileId, nextContent),
+    );
+
+    if (options.markSaved) {
+      setSavedContents((currentSavedContents) => ({
+        ...currentSavedContents,
+        [fileId]: nextContent,
+      }));
+      setDirtyFileIds((currentDirtyFileIds) =>
+        currentDirtyFileIds.filter((currentFileId) => currentFileId !== fileId),
+      );
+    }
+
+    if (options.openIfNeeded) {
+      setOpenFileIds((currentFileIds) => dedupeFileIds([...currentFileIds, fileId]));
+    }
+
+    if (options.activate) {
+      setActiveFileId(fileId);
+    }
+  }, []);
+
   const getStateSnapshot = useCallback((): ExplorerStateSnapshot => {
     return {
       templateData: templateRef.current,
@@ -412,6 +444,7 @@ export function useFileExplorer(initialTemplate: TemplateFolder) {
     closeAllFiles,
     closeFile,
     updateFileContent,
+    replaceFileContent,
     prepareSaveFile,
     prepareSaveAllFiles,
     markFilesSaved,

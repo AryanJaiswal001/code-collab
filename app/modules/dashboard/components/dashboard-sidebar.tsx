@@ -113,6 +113,7 @@ export function DashboardSidebar({
   currentUser: DashboardSidebarUser | null;
 }) {
   const pathname = usePathname();
+  const safePathname = pathname ?? "";
   const [playgroundData, setPlaygroundData] = useState<PlaygroundData[]>(
     () => initialPlaygroundData,
   );
@@ -242,7 +243,7 @@ export function DashboardSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  isActive={pathname === "/"}
+                  isActive={safePathname === "/"}
                   tooltip="Home"
                 >
                   <Link href="/">
@@ -254,7 +255,7 @@ export function DashboardSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  isActive={pathname === "/dashboard"}
+                  isActive={safePathname === "/dashboard"}
                   tooltip="Dashboard"
                 >
                   <Link href="/dashboard">
@@ -266,7 +267,7 @@ export function DashboardSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  isActive={pathname.startsWith("/workspace")}
+                  isActive={safePathname.startsWith("/workspace")}
                   tooltip="My Workspaces"
                 >
                   <Link href="/dashboard#projects">

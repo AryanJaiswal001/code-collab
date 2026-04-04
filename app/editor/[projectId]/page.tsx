@@ -1,27 +1,20 @@
-import { getProjectById } from "@/app/modules/dashboard/actions";
-import { MinimalPlaygroundShell } from "@/app/modules/playground/components/minimal-playground-shell";
+import { notFound } from "next/navigation";
+import { getWorkspaceSnapshot } from "@/app/modules/workspaces/server";
+import { WorkspacePlaygroundShell } from "@/app/modules/playground/components/workspace-playground-shell";
 
-function formatProjectName(projectId: string) {
-  return projectId
-    .split("-")
-    .filter(Boolean)
-    .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
-    .join(" ");
-}
+type EditorPageProps = {
+  params: Promise<{ projectId: string }>;
+};
 
 export default async function EditorPage({
   params,
-}: PageProps<"/editor/[projectId]">) {
+}: EditorPageProps) {
   const { projectId } = await params;
-  const project = await getProjectById(projectId);
-  const projectName = project?.title ?? formatProjectName(projectId);
+  const snapshot = await getWorkspaceSnapshot(projectId).catch(() => null);
 
-  return (
-    <MinimalPlaygroundShell
-      key={projectId}
-      projectId={projectId}
-      projectName={projectName}
-      initialRepositoryFullName={project?.repositoryFullName ?? null}
-    />
-  );
+  if (!snapshot) {
+    notFound();
+  }
+
+  return <WorkspacePlaygroundShell initialSnapshot={snapshot} />;
 }

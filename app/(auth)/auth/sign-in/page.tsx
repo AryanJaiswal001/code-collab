@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,11 +25,11 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
     "That email is already linked to another sign-in method.",
 };
 
-export default function SignInPage() {
+function SignInPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const requestedCallbackUrl = searchParams.get("callbackUrl");
-  const errorCode = searchParams.get("error");
+  const requestedCallbackUrl = searchParams?.get("callbackUrl") ?? null;
+  const errorCode = searchParams?.get("error") ?? null;
   const callbackUrl =
     requestedCallbackUrl && requestedCallbackUrl.startsWith("/")
       ? requestedCallbackUrl
@@ -113,5 +113,13 @@ export default function SignInPage() {
         </p>
       </CardFooter>
     </Card>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<Card className="w-full max-w-md" />}>
+      <SignInPageContent />
+    </Suspense>
   );
 }

@@ -13,24 +13,46 @@ type PlaygroundEditorProps = {
   openFiles: OpenFileTab[];
   activeFile: FlattenedTemplateFile | null;
   hasDirtyFiles: boolean;
+  isReadOnly?: boolean;
+  workspaceStatusLabel?: string;
+  workspaceStatusTone?: "muted" | "warning" | "success";
+  activeCollaboratorNames?: string[];
+  activeFileAssigneeName?: string | null;
+  canAssignActiveFile?: boolean;
+  pendingRemoteUpdateLabel?: string | null;
+  isLoadingRemoteUpdate?: boolean;
   onSelectFile: (fileId: string) => void;
   onCloseAllFiles: () => void;
   onCloseFile: (fileId: string) => void;
   onChange: (fileId: string, value: string) => void;
   onSaveFile: (fileId?: string) => void;
   onSaveAllFiles: () => void;
+  onPushFile?: (fileId?: string) => void;
+  onLoadPendingUpdate?: () => void;
+  onRequestAssignActiveFile?: () => void;
 };
 
 export function PlaygroundEditor({
   openFiles,
   activeFile,
   hasDirtyFiles,
+  isReadOnly = false,
+  workspaceStatusLabel = "Workspace sync is up to date.",
+  workspaceStatusTone = "muted",
+  activeCollaboratorNames = [],
+  activeFileAssigneeName = null,
+  canAssignActiveFile = false,
+  pendingRemoteUpdateLabel = null,
+  isLoadingRemoteUpdate = false,
   onSelectFile,
   onCloseAllFiles,
   onCloseFile,
   onChange,
   onSaveFile,
   onSaveAllFiles,
+  onPushFile = () => undefined,
+  onLoadPendingUpdate = () => undefined,
+  onRequestAssignActiveFile,
 }: PlaygroundEditorProps) {
   const activeTab = useMemo(
     () => openFiles.find((file) => file.id === activeFile?.id) ?? null,
@@ -92,7 +114,7 @@ export function PlaygroundEditor({
 
       <div className="flex items-center justify-between border-b border-white/10 bg-[#0b1120] px-4 py-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <p className="truncate text-sm font-medium text-white">
               {activeFile?.name ?? "No file selected"}
             </p>
@@ -105,13 +127,68 @@ export function PlaygroundEditor({
                 Saved
               </span>
             ) : null}
+            {isReadOnly && activeFile ? (
+              <span className="rounded-full border border-red-400/20 bg-red-400/10 px-2 py-0.5 text-[11px] text-red-100">
+                Read only
+              </span>
+            ) : null}
+            {activeFileAssigneeName ? (
+              <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-2 py-0.5 text-[11px] text-sky-100">
+                Assigned to {activeFileAssigneeName}
+              </span>
+            ) : null}
           </div>
           <p className="truncate text-xs text-white/45">
             {activeFile?.path ?? "Choose a file from the explorer to begin editing."}
           </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span
+              className={cn(
+                "rounded-full border px-2 py-0.5 text-[11px]",
+                workspaceStatusTone === "success"
+                  ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200"
+                  : workspaceStatusTone === "warning"
+                    ? "border-amber-300/20 bg-amber-300/10 text-amber-100"
+                    : "border-white/10 bg-white/5 text-white/60",
+              )}
+            >
+              {workspaceStatusLabel}
+            </span>
+            {activeCollaboratorNames.length ? (
+              <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2 py-0.5 text-[11px] text-amber-100">
+                {activeCollaboratorNames.join(", ")} already active here
+              </span>
+            ) : null}
+          </div>
+          {pendingRemoteUpdateLabel ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-sky-300/20 bg-sky-300/10 px-3 py-2 text-xs text-sky-50">
+              <span>{pendingRemoteUpdateLabel}</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="border-sky-200/20 bg-white/10 text-sky-50 hover:border-sky-100/40 hover:bg-white/20"
+                onClick={onLoadPendingUpdate}
+                disabled={isLoadingRemoteUpdate}
+              >
+                {isLoadingRemoteUpdate ? "Loading..." : "Load update"}
+              </Button>
+            </div>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-2">
+          {canAssignActiveFile && activeFile ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
+              onClick={() => onRequestAssignActiveFile?.()}
+            >
+              Assign file
+            </Button>
+          ) : null}
           <Button
             type="button"
             size="sm"
@@ -128,8 +205,18 @@ export function PlaygroundEditor({
             size="sm"
             variant="outline"
             className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
+            onClick={() => onPushFile(activeFile?.id)}
+            disabled={!activeFile || isReadOnly}
+          >
+            Push to workspace
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
             onClick={() => onSaveFile(activeFile?.id)}
-            disabled={!activeFile || !activeTab?.isDirty}
+            disabled={!activeFile || !activeTab?.isDirty || isReadOnly}
           >
             <Save className="h-4 w-4" />
             Save
@@ -157,7 +244,10 @@ export function PlaygroundEditor({
               );
             }}
             onChange={(nextValue) => onChange(activeFile.id, nextValue ?? "")}
-            options={playgroundEditorOptions}
+            options={{
+              ...playgroundEditorOptions,
+              readOnly: isReadOnly,
+            }}
           />
         ) : (
           <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_top,rgba(125,211,252,0.08),transparent_35%)] p-6">

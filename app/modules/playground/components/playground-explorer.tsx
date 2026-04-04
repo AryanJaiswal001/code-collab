@@ -48,7 +48,6 @@ type ExplorerDialogState =
       title: string;
       description: string;
       submitLabel: string;
-      initialValue: string;
     }
   | {
       mode: "rename";
@@ -56,7 +55,6 @@ type ExplorerDialogState =
       title: string;
       description: string;
       submitLabel: string;
-      initialValue: string;
     }
   | null;
 
@@ -64,6 +62,10 @@ type PlaygroundExplorerProps = {
   tree: TemplateTreeNode[];
   activeFileId: string | null;
   dirtyFileIds: string[];
+  assignedUserNames?: Record<string, string | null>;
+  activeCollaboratorNamesByPath?: Record<string, string[]>;
+  canCreateEntries?: boolean;
+  canEditPath?: (path: string, kind: "file" | "folder") => boolean;
   onSelectFile: (fileId: string) => void;
   onCreateNode: (input: CreateTemplateNodeInput) => Promise<void> | void;
   onRenameNode: (nodePath: string, nextName: string) => Promise<void> | void;
@@ -141,17 +143,27 @@ function ExplorerDialog({
 
 function NodeActions({
   node,
+  canCreate,
+  canEdit,
   onCreateFile,
   onCreateFolder,
   onRename,
   onDelete,
 }: {
   node: TemplateTreeNode;
+  canCreate: boolean;
+  canEdit: boolean;
   onCreateFile: () => void;
   onCreateFolder: () => void;
   onRename: () => void;
   onDelete: () => void;
 }) {
+  const hasActions = (node.kind === "folder" && canCreate) || canEdit;
+
+  if (!hasActions) {
+    return null;
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -168,7 +180,7 @@ function NodeActions({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-44">
-        {node.kind === "folder" ? (
+        {node.kind === "folder" && canCreate ? (
           <>
             <DropdownMenuItem
               onSelect={(event) => {
@@ -191,26 +203,30 @@ function NodeActions({
           </>
         ) : null}
 
-        <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            onRename();
-          }}
-        >
-          <Pencil className="h-4 w-4" />
-          Rename
-        </DropdownMenuItem>
+        {canEdit ? (
+          <>
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                onRename();
+              }}
+            >
+              <Pencil className="h-4 w-4" />
+              Rename
+            </DropdownMenuItem>
 
-        <DropdownMenuItem
-          className="text-red-400 focus:text-red-300"
-          onSelect={(event) => {
-            event.preventDefault();
-            onDelete();
-          }}
-        >
-          <Trash2 className="h-4 w-4" />
-          Delete
-        </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-red-400 focus:text-red-300"
+              onSelect={(event) => {
+                event.preventDefault();
+                onDelete();
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </DropdownMenuItem>
+          </>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -220,6 +236,10 @@ function ExplorerNode({
   node,
   activeFileId,
   dirtyFileIds,
+  assignedUserNames,
+  activeCollaboratorNamesByPath,
+  canCreateEntries,
+  canEditPath,
   expandedFolders,
   onToggleFolder,
   onSelectFile,
@@ -231,6 +251,10 @@ function ExplorerNode({
   node: TemplateTreeNode;
   activeFileId: string | null;
   dirtyFileIds: string[];
+  assignedUserNames: Record<string, string | null>;
+  activeCollaboratorNamesByPath: Record<string, string[]>;
+  canCreateEntries: boolean;
+  canEditPath: (path: string, kind: "file" | "folder") => boolean;
   expandedFolders: Record<string, boolean>;
   onToggleFolder: (folderPath: string) => void;
   onSelectFile: (fileId: string) => void;
@@ -243,6 +267,9 @@ function ExplorerNode({
   const isDirty = node.kind === "file" && dirtyFileIds.includes(node.id);
   const isExpanded =
     node.kind === "folder" ? expandedFolders[node.path] !== false : false;
+  const canEditCurrentPath = canEditPath(node.path, node.kind);
+  const assignedUserName = assignedUserNames[node.path] ?? null;
+  const activeCollaborators = activeCollaboratorNamesByPath[node.path] ?? [];
 
   if (node.kind === "folder") {
     return (
@@ -275,6 +302,8 @@ function ExplorerNode({
           <div className="opacity-0 transition group-hover:opacity-100">
             <NodeActions
               node={node}
+              canCreate={canCreateEntries}
+              canEdit={canEditCurrentPath}
               onCreateFile={() => onCreateFile(node.path)}
               onCreateFolder={() => onCreateFolder(node.path)}
               onRename={() => onRename(node.path, node.name)}
@@ -291,6 +320,10 @@ function ExplorerNode({
                 node={child}
                 activeFileId={activeFileId}
                 dirtyFileIds={dirtyFileIds}
+                assignedUserNames={assignedUserNames}
+                activeCollaboratorNamesByPath={activeCollaboratorNamesByPath}
+                canCreateEntries={canCreateEntries}
+                canEditPath={canEditPath}
                 expandedFolders={expandedFolders}
                 onToggleFolder={onToggleFolder}
                 onSelectFile={onSelectFile}
@@ -309,31 +342,50 @@ function ExplorerNode({
   return (
     <div
       className={cn(
-        "group flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm transition",
+        "group rounded-xl px-2 py-1.5 text-sm transition",
         isActive
           ? "bg-emerald-400/10 text-white"
           : "text-slate-300 hover:bg-white/5",
       )}
     >
-      <button
-        type="button"
-        onClick={() => onSelectFile(node.id)}
-        className="flex min-w-0 flex-1 items-center gap-2 text-left"
-      >
-        <FileIcon extension={node.extension} />
-        <span className="truncate">{node.name}</span>
-        {isDirty ? <span className="h-2 w-2 rounded-full bg-amber-300" /> : null}
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onSelectFile(node.id)}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        >
+          <FileIcon extension={node.extension} />
+          <span className="truncate">{node.name}</span>
+          {isDirty ? <span className="h-2 w-2 rounded-full bg-amber-300" /> : null}
+        </button>
 
-      <div className="opacity-0 transition group-hover:opacity-100">
-        <NodeActions
-          node={node}
-          onCreateFile={() => undefined}
-          onCreateFolder={() => undefined}
-          onRename={() => onRename(node.path, node.name)}
-          onDelete={() => onDelete(node.path)}
-        />
+        <div className="opacity-0 transition group-hover:opacity-100">
+          <NodeActions
+            node={node}
+            canCreate={false}
+            canEdit={canEditCurrentPath}
+            onCreateFile={() => undefined}
+            onCreateFolder={() => undefined}
+            onRename={() => onRename(node.path, node.name)}
+            onDelete={() => onDelete(node.path)}
+          />
+        </div>
       </div>
+
+      {(assignedUserName || activeCollaborators.length) ? (
+        <div className="mt-1 flex flex-wrap gap-2 pl-6 text-[11px]">
+          {assignedUserName ? (
+            <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-2 py-0.5 text-sky-100">
+              {assignedUserName}
+            </span>
+          ) : null}
+          {activeCollaborators.length ? (
+            <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2 py-0.5 text-amber-100">
+              {activeCollaborators.length} active
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -342,6 +394,10 @@ export function PlaygroundExplorer({
   tree,
   activeFileId,
   dirtyFileIds,
+  assignedUserNames = {},
+  activeCollaboratorNamesByPath = {},
+  canCreateEntries = true,
+  canEditPath = () => true,
   onSelectFile,
   onCreateNode,
   onRenameNode,
@@ -380,7 +436,6 @@ export function PlaygroundExplorer({
           ? "Add a new file to the selected folder."
           : "Add a nested folder to keep the project organized.",
       submitLabel: kind === "file" ? "Create file" : "Create folder",
-      initialValue,
     });
   };
 
@@ -392,7 +447,6 @@ export function PlaygroundExplorer({
       title: "Rename item",
       description: "Update the name and keep the playground state in sync.",
       submitLabel: "Rename",
-      initialValue,
     });
   };
 
@@ -453,6 +507,7 @@ export function PlaygroundExplorer({
             variant="ghost"
             className="rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
             onClick={() => openCreateDialog("file", null)}
+            disabled={!canCreateEntries}
           >
             <Plus className="h-3.5 w-3.5" />
             <span className="sr-only">Create file</span>
@@ -463,6 +518,7 @@ export function PlaygroundExplorer({
             variant="ghost"
             className="rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
             onClick={() => openCreateDialog("folder", null)}
+            disabled={!canCreateEntries}
           >
             <FolderPlus className="h-3.5 w-3.5" />
             <span className="sr-only">Create folder</span>
@@ -479,6 +535,10 @@ export function PlaygroundExplorer({
                 node={node}
                 activeFileId={activeFileId}
                 dirtyFileIds={dirtyFileIds}
+                assignedUserNames={assignedUserNames}
+                activeCollaboratorNamesByPath={activeCollaboratorNamesByPath}
+                canCreateEntries={canCreateEntries}
+                canEditPath={canEditPath}
                 expandedFolders={expandedFoldersWithActiveFile}
                 onToggleFolder={(folderPath) =>
                   setExpandedFolders((currentFolders) => ({

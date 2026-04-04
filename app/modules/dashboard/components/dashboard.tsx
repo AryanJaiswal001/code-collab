@@ -11,6 +11,11 @@ import type {
   SidebarProject,
   TemplateKind,
 } from "../types";
+import {
+  deleteProjectById,
+  editProjectById,
+  toggleStarMarked,
+} from "../actions";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 interface DashboardProps {
@@ -74,7 +79,7 @@ const Dashboard = ({
     );
   };
 
-  const handleRenameProject = (projectId: string) => {
+  const handleRenameProject = async (projectId: string) => {
     const currentProject = projects.find((project) => project.id === projectId);
     if (!currentProject) return;
 
@@ -83,9 +88,19 @@ const Dashboard = ({
       ?.trim();
     if (!renamed || renamed === currentProject.name) return;
 
+    const updatedProject = await editProjectById(projectId, {
+      title: renamed,
+      description: currentProject.description,
+    }).catch(() => null);
+
+    if (!updatedProject) {
+      toast.error("Unable to rename the workspace.");
+      return;
+    }
+
     setProjects((prev) =>
       prev.map((project) =>
-        project.id === projectId ? { ...project, name: renamed } : project,
+        project.id === projectId ? { ...project, name: updatedProject.title } : project,
       ),
     );
     window.dispatchEvent(
@@ -96,11 +111,18 @@ const Dashboard = ({
     toast.success("Workspace renamed");
   };
 
-  const handleToggleStarProject = (projectId: string) => {
+  const handleToggleStarProject = async (projectId: string) => {
     const currentProject = projects.find((project) => project.id === projectId);
     if (!currentProject) return;
 
     const nextStarState = !currentProject.isStarred;
+
+    const result = await toggleStarMarked(projectId, nextStarState).catch(() => null);
+
+    if (!result) {
+      toast.error("Unable to update the workspace star.");
+      return;
+    }
 
     setProjects((prev) =>
       prev.map((project) => {
@@ -124,9 +146,16 @@ const Dashboard = ({
     toast.success(nextStarState ? "Workspace starred" : "Workspace unstarred");
   };
 
-  const handleDeleteProject = (projectId: string) => {
+  const handleDeleteProject = async (projectId: string) => {
     const projectExists = projects.some((project) => project.id === projectId);
     if (!projectExists) return;
+
+    const result = await deleteProjectById(projectId).catch(() => null);
+
+    if (!result?.success) {
+      toast.error("Unable to delete the workspace.");
+      return;
+    }
 
     setProjects((prev) => prev.filter((project) => project.id !== projectId));
     window.dispatchEvent(

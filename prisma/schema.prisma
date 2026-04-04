@@ -8,14 +8,21 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
-  ownedPlaygrounds Playground[] @relation("PlaygroundOwner")
+  id                       String                @id @default(auto()) @map("_id") @db.ObjectId
+  name                     String?
+  email                    String?               @unique
+  emailVerified            DateTime?
+  image                    String?
+  accounts                 Account[]
+  sessions                 Session[]
+  ownedPlaygrounds         Playground[]          @relation("PlaygroundOwner")
+  playgroundMemberships    PlaygroundMember[]
+  playgroundInvitesCreated PlaygroundInvite[]    @relation("PlaygroundInviteCreator")
+  playgroundInvitesAccepted PlaygroundInvite[]   @relation("PlaygroundInviteAcceptor")
+  playgroundChatMessages   PlaygroundChatMessage[] @relation("PlaygroundChatAuthor")
+  playgroundActivities     PlaygroundActivity[]  @relation("PlaygroundActivityActor")
+  playgroundEntriesUpdated PlaygroundEntry[]     @relation("PlaygroundEntryUpdatedBy")
+  assignedPlaygroundEntries PlaygroundEntry[]    @relation("PlaygroundEntryAssignee")
 }
 
 model Account {
@@ -60,6 +67,39 @@ enum WorkspaceRulesMode {
   LENIENT
 }
 
+enum WorkspaceMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum PlaygroundEntryType {
+  FILE
+  FOLDER
+}
+
+enum PlaygroundInviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum PlaygroundActivityType {
+  MEMBER_JOINED
+  MEMBER_LEFT
+  FILE_OPENED
+  FILE_PUSHED
+  VOICE_JOINED
+  VOICE_LEFT
+  FILE_ASSIGNED
+  REPOSITORY_SYNCED
+  MEMBER_ROLE_CHANGED
+  MEMBER_REMOVED
+  INVITE_CREATED
+  INVITE_ACCEPTED
+}
+
 enum PlaygroundTemplate {
   REACT
   NEXTJS
@@ -71,18 +111,102 @@ enum PlaygroundTemplate {
 }
 
 model Playground {
-  id                 String              @id @default(auto()) @map("_id") @db.ObjectId
+  id                 String                  @id @default(auto()) @map("_id") @db.ObjectId
   name               String
   description        String?
   mode               WorkspaceMode
   setupType          PlaygroundSetupType
   rules              WorkspaceRulesMode
   template           PlaygroundTemplate
-  workspaceLink      String              @unique
+  workspaceLink      String                  @unique
   repositoryFullName String?
   collaborators      String[]
-  ownerId            String              @db.ObjectId
-  owner              User                @relation("PlaygroundOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  starredByIds       String[]
+  ownerId            String                  @db.ObjectId
+  owner              User                    @relation("PlaygroundOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members            PlaygroundMember[]
+  entries            PlaygroundEntry[]
+  invites            PlaygroundInvite[]
+  chatMessages       PlaygroundChatMessage[]
+  activities         PlaygroundActivity[]
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+}
+
+model PlaygroundMember {
+  id           String              @id @default(auto()) @map("_id") @db.ObjectId
+  playgroundId String              @db.ObjectId
+  userId       String              @db.ObjectId
+  role         WorkspaceMemberRole
+  isVoiceMuted Boolean             @default(false)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  playground   Playground          @relation(fields: [playgroundId], references: [id], onDelete: Cascade)
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([playgroundId, userId])
+}
+
+model PlaygroundEntry {
+  id             String             @id @default(auto()) @map("_id") @db.ObjectId
+  playgroundId   String             @db.ObjectId
+  type           PlaygroundEntryType
+  path           String
+  parentPath     String?
+  name           String
+  fileExtension  String?
+  content        String?
+  revision       Int                @default(1)
+  assignedUserId String?            @db.ObjectId
+  updatedById    String?            @db.ObjectId
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  playground     Playground         @relation(fields: [playgroundId], references: [id], onDelete: Cascade)
+  assignedUser   User?              @relation("PlaygroundEntryAssignee", fields: [assignedUserId], references: [id])
+  updatedBy      User?              @relation("PlaygroundEntryUpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([playgroundId, path])
+}
+
+model PlaygroundInvite {
+  id           String                @id @default(auto()) @map("_id") @db.ObjectId
+  playgroundId String                @db.ObjectId
+  email        String?
+  role         WorkspaceMemberRole   @default(MEMBER)
+  tokenHash    String                @unique
+  createdById  String                @db.ObjectId
+  acceptedById String?               @db.ObjectId
+  status       PlaygroundInviteStatus @default(PENDING)
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  lastSentAt   DateTime?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  playground   Playground            @relation(fields: [playgroundId], references: [id], onDelete: Cascade)
+  createdBy    User                  @relation("PlaygroundInviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  acceptedBy   User?                 @relation("PlaygroundInviteAcceptor", fields: [acceptedById], references: [id])
+}
+
+model PlaygroundChatMessage {
+  id           String      @id @default(auto()) @map("_id") @db.ObjectId
+  playgroundId String      @db.ObjectId
+  authorId     String      @db.ObjectId
+  content      String
+  createdAt    DateTime    @default(now())
+  playground   Playground  @relation(fields: [playgroundId], references: [id], onDelete: Cascade)
+  author       User        @relation("PlaygroundChatAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model PlaygroundActivity {
+  id           String                 @id @default(auto()) @map("_id") @db.ObjectId
+  playgroundId String                 @db.ObjectId
+  actorId      String?                @db.ObjectId
+  type         PlaygroundActivityType
+  message      String
+  filePath     String?
+  metadata     Json?
+  dedupeKey    String?
+  createdAt    DateTime               @default(now())
+  playground   Playground             @relation(fields: [playgroundId], references: [id], onDelete: Cascade)
+  actor        User?                  @relation("PlaygroundActivityActor", fields: [actorId], references: [id])
 }
