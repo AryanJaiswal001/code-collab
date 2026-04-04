@@ -388,7 +388,7 @@ export default function CreateWorkspaceModal({
 
       toast.success("Workspace created successfully.");
       handleOpenChange(false);
-      router.push(`/workspace/${workspaceObject.id}`);
+      router.push(`/editor/${workspaceObject.id}`);
     } catch {
       toast.error("Failed to create workspace.");
     } finally {
