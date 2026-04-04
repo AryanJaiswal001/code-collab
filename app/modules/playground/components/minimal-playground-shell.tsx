@@ -1,20 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, RefreshCw, Save, Share2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, FolderGit2, RefreshCw, Save, Share2 } from "lucide-react";
 import { toast } from "sonner";
+import { GitHubRepositoryPicker } from "@/app/modules/github/components/github-repository-picker";
+import { useGitHubRepositories } from "@/app/modules/github/hooks/useGitHubRepositories";
+import type {
+  GitHubRepoFilesResponse,
+  GitHubRepositorySummary,
+} from "@/app/modules/github/types";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import { Spinner } from "@/components/ui/spinner";
 import { PlaygroundEditor } from "./playground-editor";
 import { PlaygroundExplorer } from "./playground-explorer";
 import { useFileExplorer } from "../hooks/useFileExplorer";
 import { createStarterTemplate, findFileById } from "../lib";
-import type { CreateTemplateNodeInput } from "../types";
+import type { CreateTemplateNodeInput, TemplateFolder } from "../types";
 import { useWebContainer } from "../../webcontainers/hooks/useWebContainer";
 import WebContainerPreview from "../../webcontainers/components/webcontainer-preview";
 
@@ -22,18 +38,96 @@ type MinimalPlaygroundShellProps = {
   projectId: string;
   projectName: string;
   backHref?: string;
+  initialRepositoryFullName?: string | null;
 };
+
+async function fetchGitHubRepositoryFiles(repositoryFullName: string) {
+  const searchParams = new URLSearchParams({
+    repo: repositoryFullName,
+  });
+  const response = await fetch(`/api/github/repo-files?${searchParams.toString()}`, {
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => null) as
+    | GitHubRepoFilesResponse
+    | { error?: string }
+    | null;
+
+  if (!response.ok) {
+    throw new Error(
+      payload && "error" in payload && payload.error
+        ? payload.error
+        : "Unable to import that GitHub repository.",
+    );
+  }
+
+  return payload as GitHubRepoFilesResponse;
+}
+
+function getRepositoryName(fullName: string) {
+  return fullName.split("/").filter(Boolean).at(-1) ?? fullName;
+}
+
+function createEmptyTemplate(folderName: string): TemplateFolder {
+  return {
+    folderName,
+    items: [],
+  };
+}
+
+function ImportingRepositoryPanel({
+  repositoryFullName,
+}: {
+  repositoryFullName: string;
+}) {
+  return (
+    <div className="flex h-full items-center justify-center bg-[#050816] p-6">
+      <div className="max-w-sm rounded-[28px] border border-white/10 bg-white/[0.04] p-6 text-center text-white">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+          <Spinner className="h-5 w-5" />
+        </div>
+        <p className="mt-4 text-sm font-semibold">Importing repository</p>
+        <p className="mt-2 text-sm leading-6 text-white/55">
+          Loading files from <span className="font-medium text-white">{repositoryFullName}</span>
+          {" "}and preparing the workspace preview.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export function MinimalPlaygroundShell({
   projectId,
   projectName,
   backHref = "/dashboard",
+  initialRepositoryFullName = null,
 }: MinimalPlaygroundShellProps) {
   const starterTemplate = useMemo(
     () => createStarterTemplate(projectName),
     [projectName],
   );
+  const initialTemplate = useMemo(
+    () =>
+      initialRepositoryFullName
+        ? createEmptyTemplate(getRepositoryName(initialRepositoryFullName))
+        : starterTemplate,
+    [initialRepositoryFullName, starterTemplate],
+  );
   const [restartKey, setRestartKey] = useState(0);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [selectedImportRepository, setSelectedImportRepository] =
+    useState<GitHubRepositorySummary | null>(null);
+  const [importedRepository, setImportedRepository] =
+    useState<GitHubRepositorySummary | null>(null);
+  const [detectedProjectType, setDetectedProjectType] = useState<string | null>(null);
+  const [isImportingRepository, setIsImportingRepository] = useState(
+    Boolean(initialRepositoryFullName),
+  );
+  const [importError, setImportError] = useState<string | null>(null);
+  const [isInitialImportResolved, setIsInitialImportResolved] = useState(
+    !initialRepositoryFullName,
+  );
+  const initialImportAttemptedRef = useRef(false);
 
   const {
     templateData,
@@ -50,10 +144,20 @@ export function MinimalPlaygroundShell({
     prepareSaveFile,
     prepareSaveAllFiles,
     markFilesSaved,
+    loadTemplate,
     createNode,
     renameNode,
     deleteNode,
-  } = useFileExplorer(starterTemplate);
+  } = useFileExplorer(initialTemplate);
+
+  const {
+    repositories: githubRepositories,
+    isLoading: isLoadingRepositories,
+    error: githubRepositoriesError,
+    fetchRepositories,
+  } = useGitHubRepositories({
+    enabled: isImportDialogOpen,
+  });
 
   const {
     instance,
@@ -64,6 +168,67 @@ export function MinimalPlaygroundShell({
     renameEntry,
     deleteEntry,
   } = useWebContainer();
+
+  const importRepositoryByFullName = useCallback(
+    async (
+      repositoryFullName: string,
+      options: {
+        announceSuccess?: boolean;
+        skipConfirm?: boolean;
+      } = {},
+    ) => {
+      if (
+        !options.skipConfirm &&
+        (hasDirtyFiles || templateData.items.length > 0) &&
+        !window.confirm(
+          hasDirtyFiles
+            ? "Importing a GitHub repository will replace the current files and discard unsaved changes. Continue?"
+            : "Importing a GitHub repository will replace the current workspace files. Continue?",
+        )
+      ) {
+        return null;
+      }
+
+      setIsImportingRepository(true);
+      setImportError(null);
+
+      try {
+        const payload = await fetchGitHubRepositoryFiles(repositoryFullName);
+
+        loadTemplate(payload.templateData, {
+          activeFileId: payload.preferredOpenPath,
+          openFileIds: payload.preferredOpenPath
+            ? [payload.preferredOpenPath]
+            : undefined,
+        });
+        setImportedRepository(payload.repository);
+        setSelectedImportRepository(payload.repository);
+        setDetectedProjectType(
+          payload.projectType === "Unknown" ? null : payload.projectType,
+        );
+        setRestartKey((currentValue) => currentValue + 1);
+
+        if (options.announceSuccess) {
+          const importedSummary = payload.stats.skippedFileCount
+            ? `Imported ${payload.stats.importedFileCount} files and skipped ${payload.stats.skippedFileCount}.`
+            : `Imported ${payload.stats.importedFileCount} files.`;
+          toast.success(`${payload.repository.full_name} loaded. ${importedSummary}`);
+        }
+
+        return payload;
+      } catch (nextError) {
+        const message =
+          nextError instanceof Error
+            ? nextError.message
+            : "Unable to import that GitHub repository.";
+        setImportError(message);
+        throw nextError;
+      } finally {
+        setIsImportingRepository(false);
+      }
+    },
+    [hasDirtyFiles, loadTemplate, templateData.items.length],
+  );
 
   const handleSaveFile = useCallback(async (fileId?: string) => {
     const savedFile = prepareSaveFile(fileId);
@@ -185,6 +350,74 @@ export function MinimalPlaygroundShell({
     }
   };
 
+  const handleImportSelectedRepository = useCallback(async () => {
+    if (!selectedImportRepository) {
+      toast.error("Select a repository to import.");
+      return;
+    }
+
+    try {
+      const payload = await importRepositoryByFullName(
+        selectedImportRepository.full_name,
+        {
+          announceSuccess: true,
+        },
+      );
+
+      if (payload) {
+        setIsImportDialogOpen(false);
+      }
+    } catch (nextError) {
+      toast.error(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to import that GitHub repository.",
+      );
+    }
+  }, [importRepositoryByFullName, selectedImportRepository]);
+
+  useEffect(() => {
+    if (!initialRepositoryFullName || initialImportAttemptedRef.current) {
+      return;
+    }
+
+    initialImportAttemptedRef.current = true;
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        await importRepositoryByFullName(initialRepositoryFullName, {
+          announceSuccess: false,
+          skipConfirm: true,
+        });
+      } catch (nextError) {
+        if (!cancelled) {
+          setImportedRepository(null);
+          setDetectedProjectType(null);
+          loadTemplate(starterTemplate);
+          toast.error(
+            nextError instanceof Error
+              ? `${nextError.message} Starter workspace loaded instead.`
+              : "Unable to load the linked GitHub repository. Starter workspace loaded instead.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsInitialImportResolved(true);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    importRepositoryByFullName,
+    initialRepositoryFullName,
+    loadTemplate,
+    starterTemplate,
+  ]);
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "s") {
@@ -219,117 +452,229 @@ export function MinimalPlaygroundShell({
   }, [activeFileId, handleSaveAllFiles, handleSaveFile]);
 
   return (
-    <main className="h-screen overflow-hidden bg-[#050816] text-white">
-      <div className="flex h-full flex-col">
-        <header className="flex items-center justify-between border-b border-white/10 bg-[#050816]/95 px-4 py-3 backdrop-blur sm:px-5">
-          <div className="flex min-w-0 items-center gap-3">
-            <Link
-              href={backHref}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="sr-only">Back</span>
-            </Link>
+    <>
+      <Dialog
+        open={isImportDialogOpen}
+        onOpenChange={(nextOpen) => {
+          setIsImportDialogOpen(nextOpen);
 
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-white">
-                {projectName}
-              </p>
-              <p className="truncate text-xs text-white/45">
-                Workspace {projectId}
-              </p>
+          if (nextOpen) {
+            setImportError(null);
+            setSelectedImportRepository(importedRepository);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Import from GitHub</DialogTitle>
+            <DialogDescription>
+              Choose a repository to replace the current workspace files. Your
+              GitHub token stays on the server.
+            </DialogDescription>
+          </DialogHeader>
+
+          <GitHubRepositoryPicker
+            repositories={githubRepositories}
+            selectedRepository={selectedImportRepository}
+            isLoading={isLoadingRepositories}
+            error={githubRepositoriesError}
+            onRefresh={() => {
+              void fetchRepositories(true).catch(() => undefined);
+            }}
+            onSelectRepository={setSelectedImportRepository}
+          />
+
+          {importError ? (
+            <div className="rounded-[1.25rem] border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              {importError}
             </div>
-          </div>
+          ) : null}
 
-          <div className="flex items-center gap-2">
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"
-              className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
-              onClick={handleSaveAllFiles}
-              disabled={!hasDirtyFiles}
+              onClick={() => setIsImportDialogOpen(false)}
+              disabled={isImportingRepository}
             >
-              <Save className="h-4 w-4" />
-              Save all
+              Cancel
             </Button>
             <Button
               type="button"
-              variant="outline"
-              className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
+              onClick={() => void handleImportSelectedRepository()}
+              disabled={!selectedImportRepository || isImportingRepository}
             >
-              <Share2 className="h-4 w-4" />
-              Share
+              {isImportingRepository ? (
+                <Spinner className="mr-2 h-4 w-4" />
+              ) : (
+                <FolderGit2 className="mr-2 h-4 w-4" />
+              )}
+              {isImportingRepository ? "Importing..." : "Import repository"}
             </Button>
-            <Button
-              type="button"
-              className="bg-white text-black hover:bg-white/90"
-              onClick={() => setRestartKey((value) => value + 1)}
-            >
-              <RefreshCw className="h-4 w-4" />
-              Restart preview
-            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <main className="h-screen overflow-hidden bg-[#050816] text-white">
+        <div className="flex h-full flex-col">
+          <header className="flex items-center justify-between border-b border-white/10 bg-[#050816]/95 px-4 py-3 backdrop-blur sm:px-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <Link
+                href={backHref}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/80 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="sr-only">Back</span>
+              </Link>
+
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-white">
+                  {projectName}
+                </p>
+                <p className="truncate text-xs text-white/45">
+                  Workspace {projectId}
+                </p>
+                {(importedRepository || detectedProjectType) ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {importedRepository ? (
+                      <Badge
+                        variant="outline"
+                        className="border-white/10 bg-white/5 text-white/70"
+                      >
+                        <FolderGit2 className="mr-1 h-3.5 w-3.5" />
+                        {importedRepository.full_name}
+                      </Badge>
+                    ) : null}
+                    {detectedProjectType ? (
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-400/20 bg-emerald-400/10 text-emerald-100"
+                      >
+                        {detectedProjectType}
+                      </Badge>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
+                onClick={handleSaveAllFiles}
+                disabled={!hasDirtyFiles || isImportingRepository}
+              >
+                <Save className="h-4 w-4" />
+                Save all
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
+                onClick={() => setIsImportDialogOpen(true)}
+                disabled={isImportingRepository}
+              >
+                {isImportingRepository ? (
+                  <Spinner className="h-4 w-4" />
+                ) : (
+                  <FolderGit2 className="h-4 w-4" />
+                )}
+                Import from GitHub
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10"
+              >
+                <Share2 className="h-4 w-4" />
+                Share
+              </Button>
+              <Button
+                type="button"
+                className="bg-white text-black hover:bg-white/90"
+                onClick={() => setRestartKey((value) => value + 1)}
+                disabled={isImportingRepository}
+              >
+                <RefreshCw className="h-4 w-4" />
+                Restart preview
+              </Button>
+            </div>
+          </header>
+
+          <div className="flex items-center justify-between border-b border-white/10 bg-[#060b16] px-4 py-2 text-xs text-white/45">
+            <span>
+              {isImportingRepository
+                ? `Importing ${selectedImportRepository?.full_name ?? initialRepositoryFullName ?? "repository"}...`
+                : `${openFiles.length} open tab${openFiles.length === 1 ? "" : "s"} and ${dirtyFileIds.length} unsaved change${dirtyFileIds.length === 1 ? "" : "s"}`}
+            </span>
+            <span>
+              {isImportingRepository
+                ? "GitHub files are loading into the editor and preview."
+                : importedRepository
+                  ? detectedProjectType
+                    ? `Detected ${detectedProjectType}. Save changes to sync the preview.`
+                    : "Repository imported. Save changes to sync the preview."
+                  : hasDirtyFiles
+                    ? "Save to sync changes into the running preview."
+                    : "Preview is in sync with the saved filesystem state."}
+            </span>
           </div>
-        </header>
 
-        <div className="flex items-center justify-between border-b border-white/10 bg-[#060b16] px-4 py-2 text-xs text-white/45">
-          <span>
-            {openFiles.length} open tab{openFiles.length === 1 ? "" : "s"} and{" "}
-            {dirtyFileIds.length} unsaved change
-            {dirtyFileIds.length === 1 ? "" : "s"}
-          </span>
-          <span>
-            {hasDirtyFiles
-              ? "Save to sync changes into the running preview."
-              : "Preview is in sync with the saved filesystem state."}
-          </span>
+          <div className="min-h-0 flex-1">
+            <ResizablePanelGroup orientation="horizontal" className="h-full">
+              <ResizablePanel defaultSize={22} minSize={16}>
+                <PlaygroundExplorer
+                  tree={tree}
+                  activeFileId={activeFileId}
+                  dirtyFileIds={dirtyFileIds}
+                  onSelectFile={selectFile}
+                  onCreateNode={handleCreateNode}
+                  onRenameNode={handleRenameNode}
+                  onDeleteNode={handleDeleteNode}
+                />
+              </ResizablePanel>
+
+              <ResizableHandle withHandle className="bg-white/10" />
+
+              <ResizablePanel defaultSize={43} minSize={28}>
+                <PlaygroundEditor
+                  openFiles={openFiles}
+                  activeFile={activeFile}
+                  hasDirtyFiles={hasDirtyFiles}
+                  onSelectFile={selectFile}
+                  onCloseAllFiles={closeAllFiles}
+                  onCloseFile={closeFile}
+                  onChange={updateFileContent}
+                  onSaveFile={handleSaveFile}
+                  onSaveAllFiles={handleSaveAllFiles}
+                />
+              </ResizablePanel>
+
+              <ResizableHandle withHandle className="bg-white/10" />
+
+              <ResizablePanel defaultSize={35} minSize={24}>
+                {!isInitialImportResolved && initialRepositoryFullName ? (
+                  <ImportingRepositoryPanel
+                    repositoryFullName={initialRepositoryFullName}
+                  />
+                ) : (
+                  <WebContainerPreview
+                    templateData={templateData}
+                    instance={instance}
+                    isLoading={isLoading}
+                    error={error?.message ?? null}
+                    restartKey={restartKey}
+                    onRestart={() => setRestartKey((value) => value + 1)}
+                    runtimeKey={projectId}
+                  />
+                )}
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </div>
         </div>
-
-        <div className="min-h-0 flex-1">
-          <ResizablePanelGroup orientation="horizontal" className="h-full">
-            <ResizablePanel defaultSize={22} minSize={16}>
-              <PlaygroundExplorer
-                tree={tree}
-                activeFileId={activeFileId}
-                dirtyFileIds={dirtyFileIds}
-                onSelectFile={selectFile}
-                onCreateNode={handleCreateNode}
-                onRenameNode={handleRenameNode}
-                onDeleteNode={handleDeleteNode}
-              />
-            </ResizablePanel>
-
-            <ResizableHandle withHandle className="bg-white/10" />
-
-            <ResizablePanel defaultSize={43} minSize={28}>
-              <PlaygroundEditor
-                openFiles={openFiles}
-                activeFile={activeFile}
-                hasDirtyFiles={hasDirtyFiles}
-                onSelectFile={selectFile}
-                onCloseAllFiles={closeAllFiles}
-                onCloseFile={closeFile}
-                onChange={updateFileContent}
-                onSaveFile={handleSaveFile}
-                onSaveAllFiles={handleSaveAllFiles}
-              />
-            </ResizablePanel>
-
-            <ResizableHandle withHandle className="bg-white/10" />
-
-            <ResizablePanel defaultSize={35} minSize={24}>
-              <WebContainerPreview
-                templateData={templateData}
-                instance={instance}
-                isLoading={isLoading}
-                error={error?.message ?? null}
-                restartKey={restartKey}
-                onRestart={() => setRestartKey((value) => value + 1)}
-                runtimeKey={projectId}
-              />
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        </div>
-      </div>
-    </main>
+      </main>
+    </>
   );
 }

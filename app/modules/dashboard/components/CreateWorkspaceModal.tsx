@@ -104,7 +104,7 @@ function buildWorkspaceObject(draft: WorkspaceDraft): {
 
   const descriptionParts = [
     draft.projectSetupMode === "GITHUB"
-      ? `Imported from ${draft.selectedRepository?.fullName ?? "GitHub"}`
+      ? `Imported from ${draft.selectedRepository?.full_name ?? "GitHub"}`
       : "Started from a template",
     draft.workspaceRules === "STRICT"
       ? "Strict permission model"
@@ -144,7 +144,7 @@ function buildWorkspacePayload(draft: WorkspaceDraft): {
       draft.projectSetupMode === "GITHUB"
         ? "GITHUB"
         : (draft.selectedTemplate ?? "NEXTJS"),
-    repositoryFullName: draft.selectedRepository?.fullName,
+    repositoryFullName: draft.selectedRepository?.full_name,
   };
 }
 
@@ -479,6 +479,7 @@ export default function CreateWorkspaceModal({
             onSelectRepository={(selectedRepository) =>
               setDraft((prev) => ({
                 ...prev,
+                projectName: prev.projectName.trim() || selectedRepository.name,
                 selectedRepository,
                 githubConnected: true,
                 workspaceId: null,

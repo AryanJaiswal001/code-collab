@@ -51,6 +51,11 @@ type SaveTarget = {
   content: string;
 };
 
+type LoadTemplateOptions = {
+  activeFileId?: string | null;
+  openFileIds?: string[];
+};
+
 type ExplorerStateSnapshot = {
   templateData: TemplateFolder;
   savedContents: Record<string, string>;
@@ -240,6 +245,39 @@ export function useFileExplorer(initialTemplate: TemplateFolder) {
     );
   }, []);
 
+  const loadTemplate = useCallback((
+    nextTemplate: TemplateFolder,
+    options: LoadTemplateOptions = {},
+  ) => {
+    const availableFileIds = flattenTemplateFiles(nextTemplate).map((file) => file.id);
+    const nextSavedContents = getTemplateFileContentMap(nextTemplate);
+    const requestedOpenFileIds = options.openFileIds?.filter((fileId) =>
+      availableFileIds.includes(fileId),
+    ) ?? [];
+    const preferredActiveFileId =
+      options.activeFileId && availableFileIds.includes(options.activeFileId)
+        ? options.activeFileId
+        : null;
+    const fallbackActiveFileId = availableFileIds[0] ?? null;
+    const nextActiveFileId =
+      preferredActiveFileId ??
+      requestedOpenFileIds[0] ??
+      fallbackActiveFileId;
+    const nextOpenFileIds = dedupeFileIds(
+      requestedOpenFileIds.length
+        ? requestedOpenFileIds
+        : nextActiveFileId
+          ? [nextActiveFileId]
+          : [],
+    );
+
+    setTemplateData(nextTemplate);
+    setSavedContents(nextSavedContents);
+    setDirtyFileIds([]);
+    setOpenFileIds(nextOpenFileIds);
+    setActiveFileId(nextActiveFileId);
+  }, []);
+
   const createNode = useCallback((input: CreateTemplateNodeInput) => {
     const snapshot = getStateSnapshot();
     const result = createTemplateNode(
@@ -377,6 +415,7 @@ export function useFileExplorer(initialTemplate: TemplateFolder) {
     prepareSaveFile,
     prepareSaveAllFiles,
     markFilesSaved,
+    loadTemplate,
     createNode,
     renameNode,
     deleteNode,

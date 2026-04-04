@@ -21,6 +21,7 @@ export default async function EditorPage({
       key={projectId}
       projectId={projectId}
       projectName={projectName}
+      initialRepositoryFullName={project?.repositoryFullName ?? null}
     />
   );
 }

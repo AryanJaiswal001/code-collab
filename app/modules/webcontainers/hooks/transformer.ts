@@ -107,7 +107,9 @@ function getProjectRootFromFiles(files: IndexedTemplateFile[]) {
   const packageJsonFile = packageJsonCandidates[0];
 
   if (!packageJsonFile) {
-    throw new Error("Unable to find a package.json file in the template.");
+    throw new Error(
+      "Imported files are loaded, but preview is unavailable because the repository does not contain a package.json file.",
+    );
   }
 
   return {
@@ -129,9 +131,19 @@ function detectPackageManager(
   projectRoot: string,
   packageJsonFile: IndexedTemplateFile,
 ): SupportedPackageManager {
-  const packageJson = JSON.parse(packageJsonFile.file.content) as {
+  let packageJson: {
     packageManager?: string;
   };
+
+  try {
+    packageJson = JSON.parse(packageJsonFile.file.content) as {
+      packageManager?: string;
+    };
+  } catch {
+    throw new Error(
+      "Imported files are loaded, but preview is unavailable because package.json could not be parsed.",
+    );
+  }
   const packageManagerFromField = parsePackageManager(packageJson.packageManager);
 
   if (packageManagerFromField) {
@@ -160,9 +172,19 @@ function detectPackageManager(
 }
 
 function getRunScript(packageJsonFile: IndexedTemplateFile): SupportedRunScript {
-  const packageJson = JSON.parse(packageJsonFile.file.content) as {
+  let packageJson: {
     scripts?: Partial<Record<SupportedRunScript, string>>;
   };
+
+  try {
+    packageJson = JSON.parse(packageJsonFile.file.content) as {
+      scripts?: Partial<Record<SupportedRunScript, string>>;
+    };
+  } catch {
+    throw new Error(
+      "Imported files are loaded, but preview is unavailable because package.json could not be parsed.",
+    );
+  }
   const scripts = packageJson.scripts ?? {};
 
   if (scripts.dev) {
@@ -178,7 +200,7 @@ function getRunScript(packageJsonFile: IndexedTemplateFile): SupportedRunScript 
   }
 
   throw new Error(
-    "No runnable script was found. Add a dev, start, or preview script to package.json.",
+    "Imported files are loaded, but preview is unavailable because package.json does not define a dev, start, or preview script.",
   );
 }
 

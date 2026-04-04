@@ -3,24 +3,24 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FolderGit2, LayoutTemplate, Lock, Sparkles } from "lucide-react";
+import { GitHubRepositoryPicker } from "@/app/modules/github/components/github-repository-picker";
+import { useGitHubRepositories } from "@/app/modules/github/hooks/useGitHubRepositories";
+import type { GitHubRepositorySummary } from "@/app/modules/github/types";
 import { OptionCard } from "./OptionCard";
 import type {
-  MockRepository,
   ProjectSetupMode,
   WorkspaceTemplate,
 } from "./types";
-import { mockRepositories } from "./types";
-import { cn } from "@/lib/utils";
 import { TemplateMenu } from "./TemplateMenu";
 
 type ProjectSetupStepProps = {
   value: ProjectSetupMode | null;
   githubConnected: boolean;
-  selectedRepository: MockRepository | null;
+  selectedRepository: GitHubRepositorySummary | null;
   selectedTemplate: WorkspaceTemplate | null;
   onChange: (mode: ProjectSetupMode) => void;
   onConnectGitHub: () => void;
-  onSelectRepository: (repository: MockRepository) => void;
+  onSelectRepository: (repository: GitHubRepositorySummary) => void;
   onSelectTemplate: (template: WorkspaceTemplate) => void;
 };
 
@@ -34,6 +34,10 @@ export function ProjectSetupStep({
   onSelectRepository,
   onSelectTemplate,
 }: ProjectSetupStepProps) {
+  const { repositories, isLoading, error, fetchRepositories } = useGitHubRepositories({
+    enabled: value === "GITHUB" && githubConnected,
+  });
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2">
@@ -94,59 +98,55 @@ export function ProjectSetupStep({
                     Choose a repository
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Mock repository data for now. You can swap this list with
-                    real GitHub API data later.
+                    Search your GitHub repositories and pick the codebase you
+                    want to open as a shared workspace.
                   </p>
                 </div>
                 <Badge
                   variant="outline"
                   className="w-fit rounded-full px-3 py-1"
                 >
-                  <Sparkles className="mr-1 h-3.5 w-3.5" />
-                  GitHub connected
+                  {isLoading ? (
+                    <>
+                      <Sparkles className="mr-1 h-3.5 w-3.5 animate-pulse" />
+                      Loading repos
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1 h-3.5 w-3.5" />
+                      GitHub connected
+                    </>
+                  )}
                 </Badge>
               </div>
 
-              <div className="grid gap-3">
-                {mockRepositories.map((repository) => {
-                  const isSelected = selectedRepository?.id === repository.id;
+              <GitHubRepositoryPicker
+                repositories={repositories}
+                selectedRepository={selectedRepository}
+                isLoading={isLoading}
+                error={error}
+                onRefresh={() => {
+                  void fetchRepositories(true).catch(() => undefined);
+                }}
+                onSelectRepository={onSelectRepository}
+              />
 
-                  return (
-                    <button
-                      key={repository.id}
-                      type="button"
-                      onClick={() => onSelectRepository(repository)}
-                      className={cn(
-                        "flex flex-col gap-3 rounded-[1.5rem] border px-4 py-4 text-left transition-all",
-                        "hover:border-primary/40 hover:bg-primary/3",
-                        "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none",
-                        isSelected
-                          ? "border-primary bg-primary/6"
-                          : "border-border/70 bg-card/70",
-                      )}
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-foreground">
-                          {repository.fullName}
-                        </span>
-                        <Badge variant="outline">{repository.language}</Badge>
-                        {repository.visibility === "Private" ? (
-                          <Badge variant="secondary">
-                            <Lock className="mr-1 h-3 w-3" />
-                            Private
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline">Public</Badge>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-                        <span>{repository.name}</span>
-                        <span>Updated {repository.updatedAt}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+              {selectedRepository ? (
+                <div className="flex items-center gap-2 rounded-[1.25rem] border border-emerald-400/25 bg-emerald-400/8 px-4 py-3 text-sm text-emerald-950 dark:text-emerald-100">
+                  <FolderGit2 className="h-4 w-4" />
+                  <span className="font-medium">
+                    {selectedRepository.full_name}
+                  </span>
+                  {selectedRepository.private ? (
+                    <Badge variant="secondary">
+                      <Lock className="mr-1 h-3 w-3" />
+                      Private
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">Public</Badge>
+                  )}
+                </div>
+              ) : null}
             </div>
           )}
         </div>

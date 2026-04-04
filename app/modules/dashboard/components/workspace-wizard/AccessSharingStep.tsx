@@ -108,7 +108,7 @@ export function AccessSharingStep({
               <p className="text-sm leading-6 text-muted-foreground">
                 Repository:{" "}
                 <span className="font-medium text-foreground">
-                  {draft.selectedRepository.fullName}
+                  {draft.selectedRepository.full_name}
                 </span>
               </p>
             ) : (
