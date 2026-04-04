@@ -5,6 +5,23 @@ import { authConfig } from "./auth.config";
 const { auth } = NextAuth(authConfig);
 
 const PUBLIC_ROUTES = new Set(["/", "/home", "/auth/sign-in", "/auth/error"]);
+const PUBLIC_PREFIXES = ["/playground"];
+
+function applyCrossOriginIsolationHeaders(response: NextResponse) {
+  response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  response.headers.set("Cross-Origin-Embedder-Policy", "credentialless");
+
+  return response;
+}
+
+function isPublicPath(pathname: string) {
+  return (
+    PUBLIC_ROUTES.has(pathname) ||
+    PUBLIC_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    )
+  );
+}
 
 function getCanonicalAuthOrigin() {
   const authUrl = process.env.AUTH_URL?.trim();
@@ -25,8 +42,10 @@ export default auth((req) => {
   const canonicalOrigin = getCanonicalAuthOrigin();
 
   if (canonicalOrigin && req.nextUrl.origin !== canonicalOrigin) {
-    return NextResponse.redirect(
-      new URL(`${pathname}${req.nextUrl.search}`, canonicalOrigin),
+    return applyCrossOriginIsolationHeaders(
+      NextResponse.redirect(
+        new URL(`${pathname}${req.nextUrl.search}`, canonicalOrigin),
+      ),
     );
   }
 
@@ -39,24 +58,28 @@ export default auth((req) => {
       : "/dashboard";
 
   if (pathname === "/") {
-    return NextResponse.redirect(new URL("/home#home", req.url));
+    return applyCrossOriginIsolationHeaders(
+      NextResponse.redirect(new URL("/home#home", req.url)),
+    );
   }
 
   if (isAuthenticated && isSignInPage) {
-    return NextResponse.redirect(new URL(callbackUrl, req.url));
+    return applyCrossOriginIsolationHeaders(
+      NextResponse.redirect(new URL(callbackUrl, req.url)),
+    );
   }
 
-  if (!isAuthenticated && !PUBLIC_ROUTES.has(pathname)) {
+  if (!isAuthenticated && !isPublicPath(pathname)) {
     const signInUrl = new URL("/auth/sign-in", req.url);
     signInUrl.searchParams.set(
       "callbackUrl",
       `${pathname}${req.nextUrl.search}`,
     );
 
-    return NextResponse.redirect(signInUrl);
+    return applyCrossOriginIsolationHeaders(NextResponse.redirect(signInUrl));
   }
 
-  return NextResponse.next();
+  return applyCrossOriginIsolationHeaders(NextResponse.next());
 });
 
 export const config = {

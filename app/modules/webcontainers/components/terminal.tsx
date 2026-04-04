@@ -8,13 +8,13 @@ import React, {
   useRef,
   useState,
 } from "react";
-import type { WebContainer, WebContainerProcess } from "@webcontainer/api";
+import type { WebContainer } from "@webcontainer/api";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import { SearchAddon } from "xterm-addon-search";
 import { WebLinksAddon } from "xterm-addon-web-links";
 import "xterm/css/xterm.css";
-import { Copy, Search, Trash2 } from "lucide-react";
+import { Copy, Download, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -23,12 +23,16 @@ type TerminalProps = {
   className?: string;
   theme?: "dark" | "light";
   webContainerInstance?: WebContainer | null;
+  initialOutput?: string;
+  onClear?: () => void;
 };
 
 export interface TerminalRef {
   writeToTerminal: (data: string) => void;
   clearTerminal: () => void;
   focusTerminal: () => void;
+  getLog: () => string;
+  downloadLog: () => void;
 }
 
 const terminalThemes = {
@@ -80,188 +84,57 @@ const terminalThemes = {
   },
 } as const;
 
+const terminalBanner = "Code Collab runtime terminal\r\n\r\n";
+
 const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
-  ({ className, theme = "dark", webContainerInstance }, ref) => {
+  ({ className, theme = "dark", webContainerInstance, initialOutput = "", onClear }, ref) => {
     const hostRef = useRef<HTMLDivElement>(null);
     const termRef = useRef<Terminal | null>(null);
     const fitRef = useRef<FitAddon | null>(null);
     const searchRef = useRef<SearchAddon | null>(null);
-    const processRef = useRef<WebContainerProcess | null>(null);
-    const historyRef = useRef<string[]>([]);
-    const historyIndexRef = useRef(-1);
-    const inputLineRef = useRef("");
+    const logBufferRef = useRef(`${terminalBanner}${initialOutput}`);
     const [connected, setConnected] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
 
-    const writePrompt = useCallback(() => {
-      termRef.current?.write("\r\n$ ");
-      inputLineRef.current = "";
+    const downloadLog = useCallback(() => {
+      const blob = new Blob([logBufferRef.current], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "webcontainer-terminal.log";
+      anchor.click();
+      URL.revokeObjectURL(url);
+    }, []);
+
+    const writeToTerminal = useCallback((data: string) => {
+      logBufferRef.current += data;
+      termRef.current?.write(data);
     }, []);
 
     const clearTerminal = useCallback(() => {
-      if (!termRef.current) {
-        return;
+      logBufferRef.current = terminalBanner;
+
+      if (termRef.current) {
+        termRef.current.reset();
+        termRef.current.write(logBufferRef.current);
       }
 
-      termRef.current.clear();
-      termRef.current.writeln("Code Collab terminal");
-      writePrompt();
-    }, [writePrompt]);
+      onClear?.();
+    }, [onClear]);
 
     useImperativeHandle(
       ref,
       () => ({
-        writeToTerminal: (data: string) => {
-          termRef.current?.write(data);
-        },
+        writeToTerminal,
         clearTerminal,
         focusTerminal: () => {
           termRef.current?.focus();
         },
+        getLog: () => logBufferRef.current,
+        downloadLog,
       }),
-      [clearTerminal],
-    );
-
-    const runCommand = useCallback(
-      async (command: string) => {
-        if (!termRef.current) {
-          return;
-        }
-
-        const trimmedCommand = command.trim();
-        if (!trimmedCommand) {
-          writePrompt();
-          return;
-        }
-
-        if (trimmedCommand === "clear") {
-          clearTerminal();
-          return;
-        }
-
-        if (trimmedCommand === "help") {
-          termRef.current.writeln("");
-          termRef.current.writeln("Available commands:");
-          termRef.current.writeln("  clear");
-          termRef.current.writeln("  help");
-          termRef.current.writeln("  ls");
-          termRef.current.writeln("  npm run dev");
-          writePrompt();
-          return;
-        }
-
-        if (!webContainerInstance) {
-          termRef.current.writeln(
-            "\r\nWebContainer is not ready yet. Wait for setup to complete.",
-          );
-          writePrompt();
-          return;
-        }
-
-        if (historyRef.current.at(-1) !== trimmedCommand) {
-          historyRef.current.push(trimmedCommand);
-        }
-        historyIndexRef.current = -1;
-
-        const [commandName, ...args] = trimmedCommand.split(/\s+/);
-        termRef.current.writeln("");
-
-        try {
-          const process = await webContainerInstance.spawn(commandName, args, {
-            terminal: {
-              cols: termRef.current.cols,
-              rows: termRef.current.rows,
-            },
-          });
-
-          processRef.current = process;
-          await process.output.pipeTo(
-            new WritableStream({
-              write(chunk) {
-                termRef.current?.write(chunk);
-              },
-            }),
-          );
-          await process.exit;
-        } catch (error) {
-          termRef.current.writeln(`\r\nCommand failed: ${trimmedCommand}`);
-          console.error("Terminal command failed:", error);
-        } finally {
-          processRef.current = null;
-          writePrompt();
-        }
-      },
-      [clearTerminal, webContainerInstance, writePrompt],
-    );
-
-    const handleInput = useCallback(
-      (data: string) => {
-        if (!termRef.current) {
-          return;
-        }
-
-        if (data === "\r") {
-          void runCommand(inputLineRef.current);
-          return;
-        }
-
-        if (data === "\u007F") {
-          if (!inputLineRef.current.length) {
-            return;
-          }
-
-          inputLineRef.current = inputLineRef.current.slice(0, -1);
-          termRef.current.write("\b \b");
-          return;
-        }
-
-        if (data === "\u001b[A") {
-          if (!historyRef.current.length) {
-            return;
-          }
-
-          if (historyIndexRef.current === -1) {
-            historyIndexRef.current = historyRef.current.length - 1;
-          } else {
-            historyIndexRef.current = Math.max(historyIndexRef.current - 1, 0);
-          }
-
-          const nextValue = historyRef.current[historyIndexRef.current] ?? "";
-          termRef.current.write(
-            `\r$ ${" ".repeat(inputLineRef.current.length)}\r$ ${nextValue}`,
-          );
-          inputLineRef.current = nextValue;
-          return;
-        }
-
-        if (data === "\u001b[B") {
-          if (historyIndexRef.current === -1) {
-            return;
-          }
-
-          historyIndexRef.current += 1;
-          const nextValue =
-            historyRef.current[historyIndexRef.current] ?? "";
-          termRef.current.write(
-            `\r$ ${" ".repeat(inputLineRef.current.length)}\r$ ${nextValue}`,
-          );
-          inputLineRef.current = nextValue;
-
-          if (historyIndexRef.current >= historyRef.current.length - 1) {
-            historyIndexRef.current = -1;
-          }
-          return;
-        }
-
-        if (data < " " && data !== "\t") {
-          return;
-        }
-
-        inputLineRef.current += data;
-        termRef.current.write(data);
-      },
-      [runCommand],
+      [clearTerminal, downloadLog, writeToTerminal],
     );
 
     useEffect(() => {
@@ -270,13 +143,15 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
       }
 
       const terminal = new Terminal({
-        cursorBlink: true,
+        allowTransparency: true,
+        convertEol: true,
+        cursorBlink: false,
+        disableStdin: true,
         fontFamily: '"Fira Code", "JetBrains Mono", monospace',
         fontSize: 13,
         lineHeight: 1.2,
+        scrollback: 5000,
         theme: terminalThemes[theme],
-        convertEol: true,
-        scrollback: 2000,
       });
       const fitAddon = new FitAddon();
       const webLinksAddon = new WebLinksAddon();
@@ -286,10 +161,8 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
       terminal.loadAddon(webLinksAddon);
       terminal.loadAddon(searchAddon);
       terminal.open(hostRef.current);
+      terminal.write(logBufferRef.current);
       fitAddon.fit();
-      terminal.onData(handleInput);
-      terminal.writeln("Code Collab terminal");
-      writePrompt();
 
       termRef.current = terminal;
       fitRef.current = fitAddon;
@@ -302,50 +175,62 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
 
       return () => {
         resizeObserver.disconnect();
-        processRef.current?.kill();
         terminal.dispose();
         termRef.current = null;
         fitRef.current = null;
         searchRef.current = null;
       };
-    }, [handleInput, theme, writePrompt]);
+    }, [theme]);
 
     useEffect(() => {
       setConnected(Boolean(webContainerInstance));
     }, [webContainerInstance]);
 
-    const copySelection = useCallback(async () => {
-      const selection = termRef.current?.getSelection() ?? "";
-      if (!selection) {
+    const copyLog = useCallback(async () => {
+      const selectedText = termRef.current?.getSelection() ?? "";
+      const textToCopy = selectedText || logBufferRef.current;
+
+      if (!textToCopy) {
         return;
       }
 
-      await navigator.clipboard.writeText(selection);
+      await navigator.clipboard.writeText(textToCopy);
     }, []);
 
     const searchInTerminal = useCallback((value: string) => {
+      if (!value) {
+        return;
+      }
+
       searchRef.current?.findNext(value);
     }, []);
 
     return (
       <div
         className={cn(
-          "flex h-full flex-col overflow-hidden border-t border-white/10 bg-[#050816]",
+          "flex h-full flex-col overflow-hidden border-t border-white/10 bg-[#040714]",
           className,
         )}
       >
-        <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-white/85">Terminal</span>
+        <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.02] px-3 py-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-white/85">Terminal</span>
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[11px]",
+                  connected
+                    ? "bg-emerald-400/10 text-emerald-300"
+                    : "bg-white/5 text-white/45",
+                )}
+              >
+                {connected ? "Connected" : "Waiting"}
+              </span>
+            </div>
             <span
-              className={cn(
-                "rounded-full px-2 py-0.5 text-[11px]",
-                connected
-                  ? "bg-emerald-400/10 text-emerald-300"
-                  : "bg-white/5 text-white/45",
-              )}
+              className="mt-1 block text-[11px] text-white/40"
             >
-              {connected ? "Connected" : "Waiting"}
+              Setup output and runtime logs stay available here during preview changes.
             </span>
           </div>
 
@@ -371,15 +256,27 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
               onClick={() => setShowSearch((value) => !value)}
             >
               <Search className="h-3.5 w-3.5" />
+              <span className="sr-only">Search terminal</span>
             </Button>
             <Button
               type="button"
               size="icon"
               variant="ghost"
               className="h-7 w-7 text-white/70 hover:bg-white/10 hover:text-white"
-              onClick={() => void copySelection()}
+              onClick={() => void copyLog()}
             >
               <Copy className="h-3.5 w-3.5" />
+              <span className="sr-only">Copy log</span>
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 text-white/70 hover:bg-white/10 hover:text-white"
+              onClick={downloadLog}
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span className="sr-only">Download log</span>
             </Button>
             <Button
               type="button"
@@ -389,6 +286,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
               onClick={clearTerminal}
             >
               <Trash2 className="h-3.5 w-3.5" />
+              <span className="sr-only">Clear terminal</span>
             </Button>
           </div>
         </div>

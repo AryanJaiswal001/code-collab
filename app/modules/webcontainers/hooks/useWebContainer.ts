@@ -2,26 +2,27 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { WebContainer } from "@webcontainer/api";
-import type { TemplateFolder } from "../../playground/types";
-
-interface UseWebContainerProps {
-  templateData: TemplateFolder;
-}
 
 interface UseWebContainerReturn {
   isLoading: boolean;
   error: Error | null;
   instance: WebContainer | null;
-  writeFileSync: (path: string, content: string) => Promise<void>;
+  writeFile: (path: string, content: string) => Promise<void>;
+  createDirectory: (path: string) => Promise<void>;
+  renameEntry: (previousPath: string, nextPath: string) => Promise<void>;
+  deleteEntry: (path: string) => Promise<void>;
   destroy: () => void;
 }
 
 let globalInstance: WebContainer | null = null;
 let bootPromise: Promise<WebContainer> | null = null;
 
-export function useWebContainer({
-  templateData,
-}: UseWebContainerProps): UseWebContainerReturn {
+function getParentPath(path: string) {
+  const segments = path.split("/").filter(Boolean);
+  return segments.slice(0, -1).join("/");
+}
+
+export function useWebContainer(): UseWebContainerReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [instance, setInstance] = useState<WebContainer | null>(globalInstance);
@@ -31,6 +32,12 @@ export function useWebContainer({
 
     async function initialize() {
       try {
+        if (!window.crossOriginIsolated) {
+          throw new Error(
+            "WebContainer requires a cross-origin isolated page. Check the COOP and COEP headers for this route, ensure COEP is set to credentialless, and restart the Next.js dev server if you just changed them.",
+          );
+        }
+
         if (globalInstance) {
           if (!cancelled) {
             setInstance(globalInstance);
@@ -40,7 +47,11 @@ export function useWebContainer({
         }
 
         if (!bootPromise) {
-          bootPromise = WebContainer.boot();
+          bootPromise = WebContainer.boot({
+            coep: "credentialless",
+            forwardPreviewErrors: "exceptions-only",
+            workdirName: "playground",
+          });
         }
 
         const nextInstance = await bootPromise;
@@ -52,6 +63,7 @@ export function useWebContainer({
         }
       } catch (nextError) {
         bootPromise = null;
+
         if (!cancelled) {
           setError(nextError as Error);
           setIsLoading(false);
@@ -64,22 +76,58 @@ export function useWebContainer({
     return () => {
       cancelled = true;
     };
-  }, [templateData.folderName]);
+  }, []);
 
-  const writeFileSync = useCallback(
+  const writeFile = useCallback(
     async (path: string, content: string) => {
       if (!instance) {
         return;
       }
 
-      const segments = path.split("/").filter(Boolean);
-      const folderPath = segments.slice(0, -1).join("/");
-
-      if (folderPath) {
-        await instance.fs.mkdir(folderPath, { recursive: true });
+      const parentPath = getParentPath(path);
+      if (parentPath) {
+        await instance.fs.mkdir(parentPath, { recursive: true });
       }
 
       await instance.fs.writeFile(path, content);
+    },
+    [instance],
+  );
+
+  const createDirectory = useCallback(
+    async (path: string) => {
+      if (!instance || !path) {
+        return;
+      }
+
+      await instance.fs.mkdir(path, { recursive: true });
+    },
+    [instance],
+  );
+
+  const renameEntry = useCallback(
+    async (previousPath: string, nextPath: string) => {
+      if (!instance || previousPath === nextPath) {
+        return;
+      }
+
+      const parentPath = getParentPath(nextPath);
+      if (parentPath) {
+        await instance.fs.mkdir(parentPath, { recursive: true });
+      }
+
+      await instance.fs.rename(previousPath, nextPath);
+    },
+    [instance],
+  );
+
+  const deleteEntry = useCallback(
+    async (path: string) => {
+      if (!instance) {
+        return;
+      }
+
+      await instance.fs.rm(path, { force: true, recursive: true });
     },
     [instance],
   );
@@ -99,7 +147,10 @@ export function useWebContainer({
     isLoading,
     error,
     instance,
-    writeFileSync,
+    writeFile,
+    createDirectory,
+    renameEntry,
+    deleteEntry,
     destroy,
   };
 }
