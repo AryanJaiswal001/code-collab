@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import {
+  ChevronsUpDown,
   Code2,
   Database,
   FlameIcon,
@@ -11,12 +13,22 @@ import {
   Globe,
   Home,
   LayoutDashboard,
+  LogOut,
   Settings,
   Star,
   Terminal,
+  UserCircle2,
   type LucideIcon,
   Zap,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -30,13 +42,21 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 interface PlaygroundData {
   id: string;
   name: string;
   icon: string;
   starred: boolean;
+}
+
+export interface DashboardSidebarUser {
+  name: string | null;
+  username: string | null;
+  email: string | null;
+  avatarUrl: string | null;
 }
 
 const lucideIconMap: Record<string, LucideIcon> = {
@@ -51,15 +71,57 @@ const lucideIconMap: Record<string, LucideIcon> = {
   Code: Code2,
 };
 
+function getDisplayName(user: DashboardSidebarUser | null) {
+  return user?.name?.trim() || user?.username || user?.email || "Not signed in";
+}
+
+function getDisplayHandle(user: DashboardSidebarUser | null) {
+  if (user?.username) {
+    return `@${user.username}`;
+  }
+
+  return user?.email || "Not signed in";
+}
+
+function getSupplementaryEmail(user: DashboardSidebarUser | null) {
+  if (!user?.email || user.email === getDisplayHandle(user)) {
+    return null;
+  }
+
+  return user.email;
+}
+
+function getInitials(value: string) {
+  const words = value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  if (!words.length) {
+    return "NA";
+  }
+
+  return words.map((word) => word[0]?.toUpperCase() ?? "").join("");
+}
+
 export function DashboardSidebar({
   initialPlaygroundData,
+  currentUser,
 }: {
   initialPlaygroundData: PlaygroundData[];
+  currentUser: DashboardSidebarUser | null;
 }) {
   const pathname = usePathname();
   const [playgroundData, setPlaygroundData] = useState<PlaygroundData[]>(
     () => initialPlaygroundData,
   );
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const displayName = getDisplayName(currentUser);
+  const displayHandle = getDisplayHandle(currentUser);
+  const supplementaryEmail = getSupplementaryEmail(currentUser);
+  const avatarFallback = getInitials(displayName);
 
   useEffect(() => {
     const handleProjectCreated = (event: Event) => {
@@ -145,6 +207,16 @@ export function DashboardSidebar({
     () => playgroundData.filter((project) => project.starred),
     [playgroundData],
   );
+
+  const handleSignOut = async () => {
+    try {
+      setIsSigningOut(true);
+      await signOut({ redirectTo: "/auth/sign-in" });
+    } catch {
+      setIsSigningOut(false);
+      window.location.assign("/auth/sign-in");
+    }
+  };
 
   return (
     <Sidebar variant="inset" collapsible="icon" className="border-r">
@@ -285,27 +357,107 @@ export function DashboardSidebar({
         <SidebarGroup>
           <SidebarMenu>
             <SidebarMenuItem>
-              <div className="flex items-center gap-3 rounded-xl border px-3 py-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
-                <Avatar className="size-9">
-                  <AvatarFallback>CC</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-                  <p className="truncate text-sm font-medium">
-                    Code Collab Team
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    Signed in
-                  </p>
+              {currentUser ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/30 px-3 py-3 text-left transition hover:border-sidebar-accent hover:bg-sidebar-accent/55 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+                        "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2",
+                      )}
+                    >
+                      <Avatar className="size-9 ring-1 ring-white/10">
+                        <AvatarImage src={currentUser.avatarUrl ?? undefined} alt={displayName} />
+                        <AvatarFallback>{avatarFallback}</AvatarFallback>
+                      </Avatar>
+
+                      <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+                        <p className="truncate text-sm font-medium">
+                          {displayName}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {displayHandle}
+                        </p>
+                      </div>
+
+                      <ChevronsUpDown className="h-4 w-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
+                    </button>
+                  </DropdownMenuTrigger>
+
+                  <DropdownMenuContent
+                    side="top"
+                    align="start"
+                    sideOffset={8}
+                    className="w-64 min-w-64 rounded-2xl border border-white/10 bg-[#0b1020] p-1.5 text-white shadow-[0_24px_60px_rgba(2,6,23,0.55)]"
+                  >
+                    <DropdownMenuLabel className="px-3 py-3 text-left text-white/70">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="size-10 ring-1 ring-white/10">
+                          <AvatarImage
+                            src={currentUser.avatarUrl ?? undefined}
+                            alt={displayName}
+                          />
+                          <AvatarFallback>{avatarFallback}</AvatarFallback>
+                        </Avatar>
+
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-white">
+                            {displayName}
+                          </p>
+                          <p className="truncate text-xs text-white/55">
+                            {displayHandle}
+                          </p>
+                          {supplementaryEmail ? (
+                            <p className="truncate text-xs text-white/40">
+                              {supplementaryEmail}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </DropdownMenuLabel>
+
+                    <DropdownMenuSeparator className="bg-white/10" />
+
+                    <DropdownMenuItem
+                      asChild
+                      className="text-white/85 focus:bg-white/10 focus:text-white"
+                    >
+                      <Link href="/dashboard#settings">
+                        <Settings className="h-4 w-4" />
+                        <span>Settings</span>
+                      </Link>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      variant="destructive"
+                      disabled={isSigningOut}
+                      onSelect={() => {
+                        void handleSignOut();
+                      }}
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>{isSigningOut ? "Logging out..." : "Logout"}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <div className="flex items-center gap-3 rounded-xl border border-sidebar-border/70 bg-sidebar-accent/20 px-3 py-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
+                  <Avatar className="size-9 ring-1 ring-white/10">
+                    <AvatarFallback>
+                      <UserCircle2 className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+                    <p className="truncate text-sm font-medium">
+                      Not signed in
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      Account unavailable
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Settings">
-                <Link href="/dashboard#settings">
-                  <Settings className="h-4 w-4" />
-                  <span>Settings</span>
-                </Link>
-              </SidebarMenuButton>
+              )}
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
