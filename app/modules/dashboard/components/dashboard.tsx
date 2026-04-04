@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import AddNewButton from "./add-new";
+import CreateWorkspaceModal from "./CreateWorkspaceModal";
 import EmptyState from "./empty-state";
 import ProjectTable from "./project-table";
 import type {
@@ -25,6 +25,7 @@ const templateLabels: Record<TemplateKind, string> = {
   VUE: "Vue",
   HONO: "Hono",
   ANGULAR: "Angular",
+  GITHUB: "GitHub Import",
 };
 
 const templateIcons: Record<TemplateKind, string> = {
@@ -34,6 +35,7 @@ const templateIcons: Record<TemplateKind, string> = {
   VUE: "Compass",
   HONO: "FlameIcon",
   ANGULAR: "Terminal",
+  GITHUB: "Code2",
 };
 
 const toDashboardProject = (project: Project): DashboardProject => ({
@@ -70,7 +72,6 @@ const Dashboard = ({
         detail: toSidebarProject(project),
       }),
     );
-    toast.success("Project created successfully");
   };
 
   const handleRenameProject = (projectId: string) => {
@@ -78,7 +79,7 @@ const Dashboard = ({
     if (!currentProject) return;
 
     const renamed = window
-      .prompt("Rename project", currentProject.name)
+      .prompt("Rename workspace", currentProject.name)
       ?.trim();
     if (!renamed || renamed === currentProject.name) return;
 
@@ -92,7 +93,7 @@ const Dashboard = ({
         detail: { id: projectId, name: renamed },
       }),
     );
-    toast.success("Project renamed");
+    toast.success("Workspace renamed");
   };
 
   const handleToggleStarProject = (projectId: string) => {
@@ -120,7 +121,7 @@ const Dashboard = ({
       }),
     );
 
-    toast.success(nextStarState ? "Project starred" : "Project unstarred");
+    toast.success(nextStarState ? "Workspace starred" : "Workspace unstarred");
   };
 
   const handleDeleteProject = (projectId: string) => {
@@ -133,7 +134,7 @@ const Dashboard = ({
         detail: { id: projectId },
       }),
     );
-    toast.success("Project deleted");
+    toast.success("Workspace deleted");
   };
 
   return (
@@ -145,13 +146,13 @@ const Dashboard = ({
           </p>
           <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            Organize shared coding projects, jump into editor sessions, and keep
-            your team work visible in one focused place.
+            Organize shared workspaces, jump into live sessions, and keep your
+            team work visible in one focused place.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
           <ThemeToggle />
-          <AddNewButton onCreateProject={handleCreateProject} />
+          <CreateWorkspaceModal onCreateProject={handleCreateProject} />
         </div>
       </div>
 

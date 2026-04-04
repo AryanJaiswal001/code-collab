@@ -4,7 +4,8 @@ export type TemplateKind =
   | "EXPRESS"
   | "VUE"
   | "HONO"
-  | "ANGULAR";
+  | "ANGULAR"
+  | "GITHUB";
 
 export type ProjectUser = {
   name: string;
@@ -17,6 +18,11 @@ export type Project = {
   title: string;
   description: string;
   template: TemplateKind;
+  workspaceMode?: "PERSONAL" | "COLLABORATION";
+  projectSetupMode?: "TEMPLATE" | "GITHUB";
+  workspaceRules?: "STRICT" | "LENIENT";
+  repositoryFullName?: string;
+  collaborators?: string[];
   createdAt: string;
   updatedAt: string;
   userId: string;

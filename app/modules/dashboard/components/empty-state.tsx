@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Project } from "../types";
-import AddNewButton from "./add-new";
+import CreateWorkspaceModal from "./CreateWorkspaceModal";
 import emptyIllustration from "@/app/dashboard/empty.svg";
 
 const EmptyState = ({
@@ -23,12 +23,12 @@ const EmptyState = ({
           priority
         />
         <div className="space-y-2">
-          <h2 className="text-2xl font-semibold">No projects yet</h2>
+          <h2 className="text-2xl font-semibold">No workspaces yet</h2>
           <p className="max-w-md text-sm leading-6 text-muted-foreground">
             Create your first workspace to start collaborating
           </p>
         </div>
-        <AddNewButton onCreateProject={onCreateProject} />
+        <CreateWorkspaceModal onCreateProject={onCreateProject} />
       </CardContent>
     </Card>
   );

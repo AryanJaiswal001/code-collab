@@ -11,9 +11,17 @@ import {
 } from "@/components/ui/card";
 import { ArrowLeft, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 
 export default function SignInPage() {
+  const searchParams = useSearchParams();
+  const requestedCallbackUrl = searchParams.get("callbackUrl");
+  const callbackUrl =
+    requestedCallbackUrl && requestedCallbackUrl.startsWith("/")
+      ? requestedCallbackUrl
+      : "/dashboard";
+
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-2">
@@ -34,7 +42,7 @@ export default function SignInPage() {
           type="button"
           variant="outline"
           className="w-full"
-          onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+          onClick={() => signIn("google", { callbackUrl })}
         >
           <LayoutDashboard className="mr-2 h-4 w-4" />
           <span>Sign in with Google</span>
@@ -43,7 +51,7 @@ export default function SignInPage() {
           type="button"
           variant="outline"
           className="w-full"
-          onClick={() => signIn("github", { callbackUrl: "/dashboard" })}
+          onClick={() => signIn("github", { callbackUrl })}
         >
           <LayoutDashboard className="mr-2 h-4 w-4" />
           <span>Sign in with GitHub</span>

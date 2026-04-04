@@ -40,12 +40,23 @@ export async function createPlayground(data: {
   title: string;
   template: TemplateKind;
   description?: string;
+  id?: string;
+  workspaceMode?: "PERSONAL" | "COLLABORATION";
+  projectSetupMode?: "TEMPLATE" | "GITHUB";
+  workspaceRules?: "STRICT" | "LENIENT";
+  repositoryFullName?: string;
+  collaborators?: string[];
 }) {
   const project: Project = {
-    id: makeProjectId(data.title),
+    id: data.id ?? makeProjectId(data.title),
     title: data.title.trim(),
     description: data.description?.trim() || "No description provided yet.",
     template: data.template,
+    workspaceMode: data.workspaceMode,
+    projectSetupMode: data.projectSetupMode,
+    workspaceRules: data.workspaceRules,
+    repositoryFullName: data.repositoryFullName,
+    collaborators: data.collaborators ?? [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     userId: "user-1",
@@ -59,7 +70,26 @@ export async function createPlayground(data: {
 
   mockProjects = [project, ...mockProjects];
   revalidatePath("/dashboard");
+  revalidatePath(`/workspace/${project.id}`);
   return project;
+}
+
+export async function createWorkspace(data: {
+  id?: string;
+  title: string;
+  template: TemplateKind;
+  description?: string;
+  workspaceMode: "PERSONAL" | "COLLABORATION";
+  projectSetupMode: "TEMPLATE" | "GITHUB";
+  workspaceRules: "STRICT" | "LENIENT";
+  repositoryFullName?: string;
+  collaborators?: string[];
+}) {
+  return createPlayground(data);
+}
+
+export async function getProjectById(id: string) {
+  return mockProjects.find((project) => project.id === id) ?? null;
 }
 
 export async function deleteProjectById(id: string) {

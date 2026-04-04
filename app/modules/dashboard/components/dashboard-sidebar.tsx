@@ -194,12 +194,12 @@ export function DashboardSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  isActive={pathname.startsWith("/editor")}
-                  tooltip="My Projects"
+                  isActive={pathname.startsWith("/workspace")}
+                  tooltip="My Workspaces"
                 >
                   <Link href="/dashboard#projects">
                     <FolderKanban className="h-4 w-4" />
-                    <span>My Projects</span>
+                    <span>My Workspaces</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -216,7 +216,7 @@ export function DashboardSidebar({
             <SidebarMenu>
               {starredPlaygrounds.length === 0 ? (
                 <div className="w-full py-4 text-center text-muted-foreground">
-                  No starred projects yet
+                  No starred workspaces yet
                 </div>
               ) : (
                 starredPlaygrounds.map((playground) => {
@@ -226,10 +226,10 @@ export function DashboardSidebar({
                     <SidebarMenuItem key={playground.id}>
                       <SidebarMenuButton
                         asChild
-                        isActive={pathname === `/editor/${playground.id}`}
+                        isActive={pathname === `/workspace/${playground.id}`}
                         tooltip={playground.name}
                       >
-                        <Link href={`/editor/${playground.id}`}>
+                        <Link href={`/workspace/${playground.id}`}>
                           <IconComponent className="h-4 w-4" />
                           <span>{playground.name}</span>
                         </Link>
@@ -245,7 +245,7 @@ export function DashboardSidebar({
         <SidebarGroup>
           <SidebarGroupLabel>
             <FolderKanban className="mr-2 h-4 w-4" />
-            Recent Projects
+            Recent Workspaces
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -256,10 +256,10 @@ export function DashboardSidebar({
                   <SidebarMenuItem key={playground.id}>
                     <SidebarMenuButton
                       asChild
-                      isActive={pathname === `/editor/${playground.id}`}
+                      isActive={pathname === `/workspace/${playground.id}`}
                       tooltip={playground.name}
                     >
-                      <Link href={`/editor/${playground.id}`}>
+                      <Link href={`/workspace/${playground.id}`}>
                         <IconComponent className="h-4 w-4" />
                         <span>{playground.name}</span>
                       </Link>
@@ -271,7 +271,7 @@ export function DashboardSidebar({
                 <SidebarMenuButton asChild tooltip="View all">
                   <Link href="/dashboard#projects">
                     <span className="text-sm text-muted-foreground">
-                      View all projects
+                      View all workspaces
                     </span>
                   </Link>
                 </SidebarMenuButton>

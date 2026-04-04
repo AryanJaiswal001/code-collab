@@ -32,7 +32,7 @@ export default function ProjectTable({
   if (!projects || projects.length === 0) {
     return (
       <div className="flex w-full flex-col items-center justify-center py-12 text-center text-muted-foreground">
-        No projects available.
+        No workspaces available.
       </div>
     );
   }
@@ -45,7 +45,7 @@ export default function ProjectTable({
       <Table>
         <TableHeader className="bg-muted/35">
           <TableRow className="hover:bg-muted/35">
-            <TableHead className="pl-5">Project</TableHead>
+            <TableHead className="pl-5">Workspace</TableHead>
             <TableHead>Tech Stack</TableHead>
             <TableHead>Last Updated</TableHead>
             <TableHead className="w-16 pr-5 text-right">Actions</TableHead>
@@ -62,7 +62,7 @@ export default function ProjectTable({
                   <button
                     type="button"
                     className="truncate text-left font-medium text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline focus-visible:underline focus-visible:outline-none"
-                    onClick={() => router.push(`/editor/${project.id}`)}
+                    onClick={() => router.push(`/workspace/${project.id}`)}
                   >
                     {project.name}
                   </button>
