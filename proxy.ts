@@ -31,7 +31,25 @@ function getCanonicalAuthOrigin() {
   }
 
   try {
-    return new URL(authUrl).origin;
+    const parsedUrl = new URL(authUrl);
+
+    if (process.env.NODE_ENV !== "production") {
+      return null;
+    }
+
+    if (
+      parsedUrl.hostname === "localhost" ||
+      parsedUrl.hostname === "127.0.0.1" ||
+      parsedUrl.hostname === "::1"
+    ) {
+      return null;
+    }
+
+    if (process.env.VERCEL === "1" && process.env.VERCEL_ENV !== "production") {
+      return null;
+    }
+
+    return parsedUrl.origin;
   } catch {
     return null;
   }
