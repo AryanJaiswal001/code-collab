@@ -1,10 +1,5 @@
-import { MinimalPlaygroundShell } from "../modules/playground/components/minimal-playground-shell";
+import { PlaygroundClientPage } from "./playground-client-page";
 
 export default function PlaygroundPage() {
-  return (
-    <MinimalPlaygroundShell
-      projectId="demo-playground"
-      projectName="Demo Playground"
-    />
-  );
+  return <PlaygroundClientPage />;
 }
