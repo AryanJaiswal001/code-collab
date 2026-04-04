@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -66,10 +67,7 @@ import { cn } from "@/lib/utils";
 import TerminalComponent, {
   type TerminalRef,
 } from "../../webcontainers/components/terminal";
-import WebContainerPreview, {
-  getWebContainerRuntimeOutputBuffer,
-} from "../../webcontainers/components/webcontainer-preview";
-import { PlaygroundEditor } from "./playground-editor";
+import { getWebContainerRuntimeOutputBuffer } from "../../webcontainers/components/runtime-output-buffer";
 import { PlaygroundExplorer } from "./playground-explorer";
 import { PanelResizeHandle } from "./panel-resize-handle";
 import { useIdeLayout } from "../hooks/useIdeLayout";
@@ -83,6 +81,30 @@ type WorkspacePlaygroundShellProps = {
 type PendingWorkspaceUpdate = {
   summary: string;
 };
+
+const LazyPlaygroundEditor = dynamic(
+  () => import("./playground-editor").then((module) => module.PlaygroundEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center bg-[#090d1a] text-sm text-white/45">
+        Loading editor...
+      </div>
+    ),
+  },
+);
+
+const LazyWebContainerPreview = dynamic(
+  () => import("../../webcontainers/components/webcontainer-preview"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center bg-[#050816] text-sm text-white/45">
+        Loading preview...
+      </div>
+    ),
+  },
+);
 
 type MemberActionBody =
   | { action: "set-role"; role: "ADMIN" | "MEMBER" }
@@ -1122,7 +1144,7 @@ export function WorkspacePlaygroundShell({
   );
 
   const editorContent = (
-    <PlaygroundEditor
+    <LazyPlaygroundEditor
       openFiles={openFiles}
       activeFile={activeFile}
       hasDirtyFiles={hasDirtyFiles}
@@ -1201,7 +1223,7 @@ export function WorkspacePlaygroundShell({
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-[#050816] transition-all duration-200">
       {layout.previewOpen ? (
         <div className="min-h-[280px] min-w-0 flex-1 overflow-hidden">
-          <WebContainerPreview
+          <LazyWebContainerPreview
             templateData={templateData}
             instance={instance}
             isLoading={isLoading}

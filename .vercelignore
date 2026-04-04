@@ -1,0 +1,33 @@
+.git/
+.next/
+.vercel/
+node_modules/
+coverage/
+dist/
+build/
+out/
+.cache/
+.turbo/
+tmp/
+temp/
+logs/
+*.log
+*.tsbuildinfo
+.env
+.env.*
+.tmp-next-*.log
+.tmp-next-*.err.log
+
+# Separate backend/runtime surfaces that should not ship with the Vercel app
+realtime-server/
+render.yaml
+
+# Local starter datasets and scaffolds not used by the deployed app runtime
+code-starters/
+
+# Local-only scripts and docs
+test-db.mjs
+fix.js
+AGENTS.md
+CLAUDE.md
+DEPLOYMENT.md

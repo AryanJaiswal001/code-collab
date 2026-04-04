@@ -1,6 +1,4 @@
-import { auth } from "@/auth";
 import { getRealtimeServerUrl, REALTIME_SOCKET_PATH } from "@/lib/collaboration/realtime-config";
-import { createRealtimeAccessToken } from "@/lib/collaboration/realtime-token";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,11 +16,28 @@ export async function GET() {
   const realtimeUrl = getRealtimeServerUrl();
 
   if (!realtimeUrl) {
+    if (process.env.VERCEL === "1") {
+      return Response.json(
+        {
+          error:
+            "REALTIME_SERVER_URL is required on Vercel. Deploy realtime-server separately and configure REALTIME_SERVER_URL and REALTIME_SHARED_SECRET.",
+        },
+        {
+          status: 503,
+        },
+      );
+    }
+
     return Response.json({
       mode: "local" as const,
       path: REALTIME_SOCKET_PATH,
     });
   }
+
+  const [{ auth }, { createRealtimeAccessToken }] = await Promise.all([
+    import("@/auth"),
+    import("@/lib/collaboration/realtime-token"),
+  ]);
 
   const session = await auth();
   const user = session?.user;

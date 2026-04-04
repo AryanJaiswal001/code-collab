@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -40,11 +41,8 @@ import { Spinner } from "@/components/ui/spinner";
 import TerminalComponent, {
   type TerminalRef,
 } from "../../webcontainers/components/terminal";
-import WebContainerPreview, {
-  getWebContainerRuntimeOutputBuffer,
-} from "../../webcontainers/components/webcontainer-preview";
+import { getWebContainerRuntimeOutputBuffer } from "../../webcontainers/components/runtime-output-buffer";
 import { PanelResizeHandle } from "./panel-resize-handle";
-import { PlaygroundEditor } from "./playground-editor";
 import { PlaygroundExplorer } from "./playground-explorer";
 import { useFileExplorer } from "../hooks/useFileExplorer";
 import { useIdeLayout } from "../hooks/useIdeLayout";
@@ -58,6 +56,30 @@ type MinimalPlaygroundShellProps = {
   backHref?: string;
   initialRepositoryFullName?: string | null;
 };
+
+const LazyPlaygroundEditor = dynamic(
+  () => import("./playground-editor").then((module) => module.PlaygroundEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center bg-[#090d1a] text-sm text-white/45">
+        Loading editor...
+      </div>
+    ),
+  },
+);
+
+const LazyWebContainerPreview = dynamic(
+  () => import("../../webcontainers/components/webcontainer-preview"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center bg-[#050816] text-sm text-white/45">
+        Loading preview...
+      </div>
+    ),
+  },
+);
 
 async function fetchGitHubRepositoryFiles(repositoryFullName: string) {
   const searchParams = new URLSearchParams({
@@ -480,7 +502,7 @@ export function MinimalPlaygroundShell({
   const previewPanel = !isInitialImportResolved && initialRepositoryFullName ? (
     <ImportingRepositoryPanel repositoryFullName={initialRepositoryFullName} />
   ) : (
-    <WebContainerPreview
+    <LazyWebContainerPreview
       templateData={templateData}
       instance={instance}
       isLoading={isLoading}
@@ -778,7 +800,7 @@ export function MinimalPlaygroundShell({
               )}
 
               <div className="min-h-0 min-w-0 overflow-hidden">
-                <PlaygroundEditor
+                <LazyPlaygroundEditor
                   openFiles={openFiles}
                   activeFile={activeFile}
                   hasDirtyFiles={hasDirtyFiles}
@@ -814,7 +836,7 @@ export function MinimalPlaygroundShell({
 
             <div className="flex h-full min-h-0 lg:hidden">
               <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                <PlaygroundEditor
+                <LazyPlaygroundEditor
                   openFiles={openFiles}
                   activeFile={activeFile}
                   hasDirtyFiles={hasDirtyFiles}

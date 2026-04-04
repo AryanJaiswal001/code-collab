@@ -20,6 +20,11 @@ import {
   type WebContainerCommand,
 } from "../hooks/transformer";
 import type { TerminalRef } from "./terminal";
+import {
+  appendWebContainerRuntimeOutput,
+  getWebContainerRuntimeOutputBuffer,
+  resetWebContainerRuntimeOutput,
+} from "./runtime-output-buffer";
 
 const TerminalComponent = dynamic(() => import("./terminal"), { ssr: false });
 
@@ -53,7 +58,6 @@ type RuntimeSessionCache = {
   packageManager: string;
   runLabel: string;
   setupStep: number;
-  outputBuffer: string;
   serverProcess: WebContainerProcess | null;
   serverReadyUnsubscribe: (() => void) | null;
   status: RuntimeStatus;
@@ -68,15 +72,10 @@ const runtimeSessionCache: RuntimeSessionCache = {
   packageManager: "",
   runLabel: "",
   setupStep: 0,
-  outputBuffer: "",
   serverProcess: null,
   serverReadyUnsubscribe: null,
   status: "idle",
 };
-
-export function getWebContainerRuntimeOutputBuffer() {
-  return runtimeSessionCache.outputBuffer;
-}
 
 function getSpawnOptions(projectRoot: string) {
   return projectRoot ? { cwd: projectRoot } : undefined;
@@ -185,7 +184,7 @@ export default function WebContainerPreview({
   }, [previewUrl]);
 
   const writeToTerminal = useCallback((data: string) => {
-    runtimeSessionCache.outputBuffer += data;
+    appendWebContainerRuntimeOutput(data);
     terminalControllerRef.current?.writeToTerminal(data);
   }, [terminalControllerRef]);
 
@@ -225,7 +224,7 @@ export default function WebContainerPreview({
         }
 
         if (runtimeSessionCache.runtimeKey && runtimeSessionCache.runtimeKey !== runtimeKey) {
-          runtimeSessionCache.outputBuffer = "";
+          resetWebContainerRuntimeOutput();
           terminalControllerRef.current?.clearTerminal();
         }
 
@@ -233,9 +232,11 @@ export default function WebContainerPreview({
         runtimeSessionCache.container = container;
         runtimeSessionCache.runtimeKey = runtimeKey;
         runtimeSessionCache.status = restartKey ? "restarting" : "setting_up";
-        runtimeSessionCache.outputBuffer += restartKey
-          ? "\r\n=== Restarting WebContainer runtime ===\r\n"
-          : "\r\n=== Booting WebContainer runtime ===\r\n";
+        appendWebContainerRuntimeOutput(
+          restartKey
+            ? "\r\n=== Restarting WebContainer runtime ===\r\n"
+            : "\r\n=== Booting WebContainer runtime ===\r\n",
+        );
         terminalControllerRef.current?.writeToTerminal(
           restartKey
             ? "\r\n=== Restarting WebContainer runtime ===\r\n"
@@ -596,9 +597,9 @@ export default function WebContainerPreview({
                 webContainerInstance={instance}
                 theme="dark"
                 className="h-full border-0"
-                initialOutput={runtimeSessionCache.outputBuffer}
+                initialOutput={getWebContainerRuntimeOutputBuffer()}
                 onClear={() => {
-                  runtimeSessionCache.outputBuffer = "";
+                  resetWebContainerRuntimeOutput();
                 }}
               />
             </div>
