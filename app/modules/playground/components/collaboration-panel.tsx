@@ -53,6 +53,8 @@ type CollaborationPanelProps = {
   isVoiceJoined: boolean;
   isJoiningVoice: boolean;
   isSelfMuted: boolean;
+  isListeningForSound: boolean;
+  localAudioLevel: number;
   voiceError: string | null;
   inviteEmailDraft: string;
   latestInviteUrl: string | null;
@@ -114,6 +116,8 @@ export function CollaborationPanel({
   isVoiceJoined,
   isJoiningVoice,
   isSelfMuted,
+  isListeningForSound,
+  localAudioLevel,
   voiceError,
   inviteEmailDraft,
   latestInviteUrl,
@@ -470,17 +474,20 @@ export function CollaborationPanel({
         </TabsContent>
 
         <TabsContent value="voice" className="mt-0 flex h-full flex-col data-[state=inactive]:hidden">
-          <div className="flex-shrink-0 border-b border-white/10 px-4 py-4">
-            <div className="flex flex-wrap items-center gap-2">
-              {isVoiceJoined ? (
-                <>
-                  <Button
-                    type="button"
-                    className={primaryButtonClass}
-                    onClick={onLeaveVoice}
-                  >
-                    Leave Voice
-                  </Button>
+          {isVoiceJoined ? (
+            <>
+              <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/45">
+                    Voice
+                  </p>
+                  <p className="text-sm text-white/70">
+                    {voiceParticipants.length} participant
+                    {voiceParticipants.length === 1 ? "" : "s"} in call
+                  </p>
+                </div>
+
+                <div className="flex flex-shrink-0 items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -488,83 +495,163 @@ export function CollaborationPanel({
                     onClick={onToggleSelfMuted}
                   >
                     {isSelfMuted ? (
-                      <MicOff className="mr-2 h-4 w-4" />
+                      <Mic className="h-4 w-4" />
                     ) : (
-                      <Mic className="mr-2 h-4 w-4" />
+                      <MicOff className="h-4 w-4" />
                     )}
-                    {isSelfMuted ? "Unmute Mic" : "Mute Mic"}
+                    {isSelfMuted ? "Unmute" : "Mute"}
                   </Button>
-                </>
-              ) : (
+                  <Button
+                    type="button"
+                    className={primaryButtonClass}
+                    onClick={onLeaveVoice}
+                  >
+                    Leave
+                  </Button>
+                </div>
+              </div>
+
+              {voiceError ? (
+                <div className="mx-4 mt-3 rounded-2xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-100">
+                  <div className="flex items-center justify-between gap-3">
+                    <span>{voiceError}</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="text-red-100 hover:bg-red-400/10 hover:text-white"
+                      onClick={onClearVoiceError}
+                    >
+                      Dismiss
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              <ScrollArea className="ide-scrollbar min-h-0 flex-1 px-4 py-4">
+                <div className="space-y-2">
+                  {voiceParticipants.length ? (
+                    voiceParticipants.map((participant) => {
+                      const isCurrentUser = participant.userId === currentUser.userId;
+                      const isActiveSpeaker = isCurrentUser
+                        ? !isSelfMuted && isListeningForSound && localAudioLevel > 0.12
+                        : participant.isSpeaking;
+                      const activeBars = isCurrentUser
+                        ? Math.max(1, Math.round(localAudioLevel * 5))
+                        : participant.isSpeaking
+                          ? 4
+                          : 1;
+
+                      return (
+                        <div
+                          key={participant.socketId}
+                          className={cn(
+                            "flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-all duration-200",
+                            isActiveSpeaker
+                              ? "border-emerald-400/25 bg-emerald-400/10"
+                              : "border-white/10 bg-white/[0.03]",
+                          )}
+                        >
+                          <Avatar className="h-9 w-9 border border-white/10">
+                            <AvatarImage src={participant.image ?? undefined} alt={participant.name} />
+                            <AvatarFallback>{getInitials(participant.name)}</AvatarFallback>
+                          </Avatar>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate text-sm font-medium text-white">
+                                {participant.name}
+                              </p>
+                              {isCurrentUser ? (
+                                <Badge
+                                  variant="outline"
+                                  className="border-sky-300/20 bg-sky-300/10 text-sky-100"
+                                >
+                                  You
+                                </Badge>
+                              ) : null}
+                              {participant.isMutedByModerator ? (
+                                <Badge
+                                  variant="outline"
+                                  className="border-red-400/20 bg-red-400/10 text-red-200"
+                                >
+                                  Voice muted
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <p className="text-xs text-white/45">
+                              {isCurrentUser
+                                ? isSelfMuted
+                                  ? "Muted"
+                                  : isListeningForSound
+                                    ? "Listening"
+                                    : "Connecting mic"
+                                : participant.role}
+                            </p>
+                          </div>
+
+                          <div className="flex items-end gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1.5">
+                            {[0, 1, 2, 3, 4].map((barIndex) => (
+                              <span
+                                key={barIndex}
+                                className={cn(
+                                  "w-1 rounded-full transition-all duration-150",
+                                  barIndex < activeBars
+                                    ? "bg-emerald-300"
+                                    : "bg-white/15",
+                                )}
+                                style={{ height: `${8 + (barIndex % 3) * 4}px` }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm text-white/50">
+                      Joining voice...
+                    </div>
+                  )}
+                </div>
+                {remoteAudio.map((item) => (
+                  <AudioPlayer key={item.participant.socketId} stream={item.stream} />
+                ))}
+              </ScrollArea>
+            </>
+          ) : (
+            <div className="flex h-full items-center justify-center p-4">
+              <div className="w-full rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                <p className="text-sm font-medium text-white">Workspace Voice</p>
+                <p className="mt-2 text-sm leading-6 text-white/55">
+                  Join the call to hear teammates and see live speaking waveforms.
+                </p>
+                {voiceError ? (
+                  <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-100">
+                    <div className="flex items-center justify-between gap-3">
+                      <span>{voiceError}</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-100 hover:bg-red-400/10 hover:text-white"
+                        onClick={onClearVoiceError}
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
                 <Button
                   type="button"
-                  className={primaryButtonClass}
+                  className="mt-4 w-full rounded-xl border border-blue-500/40 bg-blue-600 text-white hover:bg-blue-500"
                   disabled={isJoiningVoice}
                   onClick={onJoinVoice}
                 >
                   {isJoiningVoice ? "Joining..." : "Join Voice"}
                 </Button>
-              )}
-            </div>
-            {voiceError ? (
-              <div className="mt-3 rounded-2xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-100">
-                <div className="flex items-center justify-between gap-3">
-                  <span>{voiceError}</span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    className="text-red-100 hover:bg-red-400/10 hover:text-white"
-                    onClick={onClearVoiceError}
-                  >
-                    Dismiss
-                  </Button>
-                </div>
               </div>
-            ) : null}
-          </div>
-
-          <ScrollArea className="ide-scrollbar min-h-0 flex-1 px-4 py-4">
-            <div className="space-y-3">
-              {voiceParticipants.length ? (
-                voiceParticipants.map((participant) => (
-                  <div
-                    key={participant.socketId}
-                    className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3"
-                  >
-                    <Avatar className="h-10 w-10 border border-white/10">
-                      <AvatarImage src={participant.image ?? undefined} alt={participant.name} />
-                      <AvatarFallback>{getInitials(participant.name)}</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-medium text-white">{participant.name}</p>
-                        {participant.isMutedByModerator ? (
-                          <Badge variant="outline" className="border-red-400/20 bg-red-400/10 text-red-200">
-                            Voice muted
-                          </Badge>
-                        ) : null}
-                      </div>
-                      <p className="text-xs text-white/45">{participant.role}</p>
-                    </div>
-                    <span
-                      className={cn(
-                        "inline-flex h-3 w-3 rounded-full",
-                        participant.isSpeaking ? "bg-emerald-400" : "bg-slate-500",
-                      )}
-                    />
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm text-white/50">
-                  No one is in voice yet.
-                </div>
-              )}
             </div>
-            {remoteAudio.map((item) => (
-              <AudioPlayer key={item.participant.socketId} stream={item.stream} />
-            ))}
-          </ScrollArea>
+          )}
         </TabsContent>
 
         <TabsContent value="activity" className="mt-0 flex h-full flex-col data-[state=inactive]:hidden">

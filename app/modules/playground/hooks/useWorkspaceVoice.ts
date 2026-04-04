@@ -81,6 +81,8 @@ export function useWorkspaceVoice({
   const [isVoiceJoined, setIsVoiceJoined] = useState(false);
   const [isJoiningVoice, setIsJoiningVoice] = useState(false);
   const [isSelfMuted, setIsSelfMuted] = useState(false);
+  const [isListeningForSound, setIsListeningForSound] = useState(false);
+  const [localAudioLevel, setLocalAudioLevel] = useState(0);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [participants, setParticipants] = useState<WorkspaceVoiceParticipant[]>([]);
   const [remoteAudio, setRemoteAudio] = useState<RemoteAudioState[]>([]);
@@ -126,6 +128,8 @@ export function useWorkspaceVoice({
     audioContextRef.current?.close().catch(() => undefined);
     audioContextRef.current = null;
     lastSpeakingStateRef.current = false;
+    setIsListeningForSound(false);
+    setLocalAudioLevel(0);
 
     for (const peer of peerConnectionsRef.current.values()) {
       peer.close();
@@ -199,9 +203,12 @@ export function useWorkspaceVoice({
     const buffer = new Uint8Array(analyser.fftSize);
 
     analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.8;
     source.connect(analyser);
     audioContextRef.current = audioContext;
     analyserRef.current = analyser;
+    setIsListeningForSound(true);
+    void audioContext.resume().catch(() => undefined);
 
     const tick = () => {
       if (!analyserRef.current || !socket) {
@@ -212,9 +219,21 @@ export function useWorkspaceVoice({
       const average =
         buffer.reduce((total, value) => total + Math.abs(value - 128), 0) / buffer.length;
       const isSpeaking = !isSelfMutedRef.current && average > 8;
+      const nextAudioLevel = isSelfMutedRef.current
+        ? 0
+        : Math.min(1, average / 24);
+
+      setLocalAudioLevel(nextAudioLevel);
 
       if (isSpeaking !== lastSpeakingStateRef.current) {
         lastSpeakingStateRef.current = isSpeaking;
+        setParticipants((currentParticipants) =>
+          currentParticipants.map((participant) =>
+            participant.userId === currentUser.userId
+              ? { ...participant, isSpeaking }
+              : participant,
+          ),
+        );
         socket.emit("voice:speaking", {
           workspaceId,
           isSpeaking,
@@ -225,7 +244,7 @@ export function useWorkspaceVoice({
     };
 
     speakingFrameRef.current = window.requestAnimationFrame(tick);
-  }, [socket, workspaceId]);
+  }, [currentUser.userId, socket, workspaceId]);
 
   const joinVoice = useCallback(async () => {
     if (!socket || isVoiceJoined || isJoiningVoice) {
@@ -290,37 +309,37 @@ export function useWorkspaceVoice({
       const currentSocketId = activeSocket.id ?? "self";
 
       setParticipants((currentParticipants) => {
-        const withoutSelf = currentParticipants.filter(
+        const existingSelf = currentParticipants.find(
+          (participant) => participant.userId === currentUser.userId,
+        );
+
+        const selfParticipant: WorkspaceVoiceParticipant | null = isVoiceJoined
+          ? {
+              userId: currentUser.userId,
+              name: currentUser.name,
+              email: currentUser.email,
+              image: currentUser.image,
+              username: currentUser.username,
+              socketId: existingSelf?.socketId ?? currentSocketId,
+              role: currentUser.role,
+              isSpeaking: existingSelf?.isSpeaking ?? false,
+              isMutedByModerator: existingSelf?.isMutedByModerator ?? false,
+            }
+          : null;
+
+        const mergedOthers = nextParticipants.filter(
           (participant) => participant.userId !== currentUser.userId,
         );
-        const mergedParticipants = [
-          ...withoutSelf.filter(
-            (participant) =>
-              !nextParticipants.some((nextParticipant) => nextParticipant.socketId === participant.socketId),
-          ),
-          ...nextParticipants,
-        ];
 
-        return isVoiceJoined
-          ? [
-              {
-                userId: currentUser.userId,
-                name: currentUser.name,
-                email: currentUser.email,
-                image: currentUser.image,
-                username: currentUser.username,
-                socketId: currentSocketId,
-                role: currentUser.role,
-                isSpeaking: false,
-                isMutedByModerator: false,
-              },
-              ...mergedParticipants,
-            ]
-          : mergedParticipants;
+        return selfParticipant ? [selfParticipant, ...mergedOthers] : mergedOthers;
       });
 
       if (isVoiceJoined) {
         nextParticipants.forEach((participant) => {
+          if (participant.userId === currentUser.userId) {
+            return;
+          }
+
           void createOfferForParticipant(participant.socketId);
         });
       }
@@ -329,7 +348,9 @@ export function useWorkspaceVoice({
     function handleParticipantJoined(participant: WorkspaceVoiceParticipant) {
       setParticipants((currentParticipants) => {
         const remainingParticipants = currentParticipants.filter(
-          (currentParticipant) => currentParticipant.socketId !== participant.socketId,
+          (currentParticipant) =>
+            currentParticipant.socketId !== participant.socketId &&
+            currentParticipant.userId !== participant.userId,
         );
 
         return [...remainingParticipants, participant];
@@ -475,6 +496,8 @@ export function useWorkspaceVoice({
     isVoiceJoined,
     isJoiningVoice,
     isSelfMuted,
+    isListeningForSound,
+    localAudioLevel,
     voiceError,
     participants,
     remoteAudio,

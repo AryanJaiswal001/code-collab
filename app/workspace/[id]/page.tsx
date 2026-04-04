@@ -1,9 +1,13 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 
+type WorkspacePageProps = {
+  params: Promise<{ id: string }>;
+};
+
 export default async function WorkspacePage({
   params,
-}: PageProps<"/workspace/[id]">) {
+}: WorkspacePageProps) {
   const { id } = await params;
   const session = await auth();
 

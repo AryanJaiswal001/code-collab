@@ -1594,8 +1594,20 @@ export async function assignWorkspaceFile(params: {
 export async function createWorkspaceChatEntry(params: {
   workspaceLink: string;
   content: string;
+  user?: WorkspaceActor;
 }) {
-  const access = await getWorkspaceAccess(params.workspaceLink);
+  const access = await getWorkspaceAccess(
+    params.workspaceLink,
+    params.user
+      ? {
+          id: params.user.userId,
+          name: params.user.name,
+          email: params.user.email,
+          image: params.user.image,
+          username: params.user.username,
+        }
+      : undefined,
+  );
   const content = params.content.trim();
 
   if (!content) {

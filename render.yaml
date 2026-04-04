@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: code-collab-realtime
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm run realtime:start
+    healthCheckPath: /health

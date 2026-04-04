@@ -153,6 +153,51 @@ async function postWorkspaceJson<T>(workspaceId: string, segment: string, body: 
   return payload as T;
 }
 
+async function sendWorkspaceChatOverSocket(params: {
+  socket: Awaited<ReturnType<typeof getWorkspaceSocket>>;
+  workspaceId: string;
+  content: string;
+}) {
+  return new Promise<WorkspaceChatMessage>((resolve, reject) => {
+    let settled = false;
+    const timeoutId = window.setTimeout(() => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      reject(new Error("The chat service is taking too long to respond."));
+    }, 8_000);
+
+    params.socket.emit(
+      "workspace:chat:send",
+      {
+        workspaceId: params.workspaceId,
+        content: params.content,
+      },
+      (
+        result:
+          | { ok: true; message: WorkspaceChatMessage }
+          | { ok: false; error: string },
+      ) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        window.clearTimeout(timeoutId);
+
+        if (result.ok) {
+          resolve(result.message);
+          return;
+        }
+
+        reject(new Error(result.error));
+      },
+    );
+  });
+}
+
 export function WorkspacePlaygroundShell({
   initialSnapshot,
   backHref = "/dashboard",
@@ -198,6 +243,7 @@ export function WorkspacePlaygroundShell({
   const [socket, setSocket] = useState<Awaited<ReturnType<typeof getWorkspaceSocket>> | null>(null);
   const terminalRef = useRef<TerminalRef | null>(null);
   const hasNormalizedRightRailWidthRef = useRef(false);
+  const hasAutoOpenedVoicePanelRef = useRef(false);
   const layout = useIdeLayout({
     storageKey: `workspace-playground-layout:${initialSnapshot.id}`,
     enableCollaboration: true,
@@ -605,8 +651,22 @@ export function WorkspacePlaygroundShell({
     setIsSendingChat(true);
 
     try {
-      await postWorkspaceJson(snapshot.id, "chat", {
-        content: chatDraft,
+      const message = socket?.connected
+        ? await sendWorkspaceChatOverSocket({
+            socket,
+            workspaceId: snapshot.id,
+            content: chatDraft,
+          })
+        : await postWorkspaceJson<WorkspaceChatMessage>(snapshot.id, "chat", {
+            content: chatDraft,
+          });
+
+      setChatMessages((currentMessages) => {
+        if (currentMessages.some((currentMessage) => currentMessage.id === message.id)) {
+          return currentMessages;
+        }
+
+        return [...currentMessages, message];
       });
       setChatDraft("");
     } catch (error) {
@@ -785,13 +845,22 @@ export function WorkspacePlaygroundShell({
   useEffect(() => {
     let active = true;
 
-    void getWorkspaceSocket().then((connectedSocket) => {
-      if (!active) {
-        return;
-      }
+    void getWorkspaceSocket()
+      .then((connectedSocket) => {
+        if (!active) {
+          return;
+        }
 
-      setSocket(connectedSocket);
-    });
+        setSocket(connectedSocket);
+      })
+      .catch((error) => {
+        if (!active) {
+          return;
+        }
+
+        console.error("Unable to initialize workspace realtime.", error);
+        setSocket(null);
+      });
 
     return () => {
       active = false;
@@ -970,6 +1039,25 @@ export function WorkspacePlaygroundShell({
   }, [activeFileId]);
 
   useEffect(() => {
+    if (!voice.isVoiceJoined) {
+      hasAutoOpenedVoicePanelRef.current = false;
+      return;
+    }
+
+    if (hasAutoOpenedVoicePanelRef.current) {
+      return;
+    }
+
+    hasAutoOpenedVoicePanelRef.current = true;
+    setActivePanelTab("voice");
+    layout.setCollaborationOpen(true);
+
+    if (layout.isCompactViewport) {
+      layout.setRightRailSheetOpen(true);
+    }
+  }, [layout, voice.isVoiceJoined]);
+
+  useEffect(() => {
     if (hasNormalizedRightRailWidthRef.current || layout.isCompactViewport) {
       return;
     }
@@ -1082,6 +1170,8 @@ export function WorkspacePlaygroundShell({
       isVoiceJoined={voice.isVoiceJoined}
       isJoiningVoice={voice.isJoiningVoice}
       isSelfMuted={voice.isSelfMuted}
+      isListeningForSound={voice.isListeningForSound}
+      localAudioLevel={voice.localAudioLevel}
       voiceError={voice.voiceError}
       inviteEmailDraft={inviteEmailDraft}
       latestInviteUrl={latestInviteUrl}
