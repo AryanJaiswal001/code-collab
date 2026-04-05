@@ -3,8 +3,8 @@ import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 
 if (process.env.VERCEL) {
-  process.env.AUTH_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL 
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` 
+  process.env.AUTH_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
     : `https://${process.env.VERCEL_URL}`;
   process.env.NEXTAUTH_URL = process.env.AUTH_URL;
 }
@@ -50,10 +50,7 @@ function resolveUsername(params: {
   );
 }
 
-function resolveAvatarUrl(
-  profile: unknown,
-  fallback?: string | null,
-) {
+function resolveAvatarUrl(profile: unknown, fallback?: string | null) {
   return (
     getProfileString(profile, "avatar_url") ??
     getProfileString(profile, "picture") ??
@@ -122,7 +119,8 @@ export const authConfig = {
 
       const avatarUrl = resolveAvatarUrl(
         profile,
-        user?.image ?? (typeof token.picture === "string" ? token.picture : null),
+        user?.image ??
+          (typeof token.picture === "string" ? token.picture : null),
       );
 
       if (avatarUrl) {

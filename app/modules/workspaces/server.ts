@@ -223,7 +223,9 @@ function buildInviteUrlPath(token: string) {
 
 function getAppOrigin() {
   const configuredOrigin =
-    process.env.AUTH_URL?.trim() || process.env.NEXT_PUBLIC_API_URL?.trim() || process.env.NEXTAUTH_URL?.trim();
+    process.env.AUTH_URL?.trim() ||
+    process.env.NEXT_PUBLIC_API_URL?.trim() ||
+    process.env.NEXTAUTH_URL?.trim();
 
   if (configuredOrigin) {
     try {
