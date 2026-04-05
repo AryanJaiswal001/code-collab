@@ -81,18 +81,13 @@ const LazyWebContainerPreview = dynamic(
   },
 );
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-
 async function fetchGitHubRepositoryFiles(repositoryFullName: string) {
   const searchParams = new URLSearchParams({
     repo: repositoryFullName,
   });
-  const response = await fetch(
-    `${API_URL}/api/github/repo-files?${searchParams.toString()}`,
-    {
-      cache: "no-store",
-    },
-  );
+  const response = await fetch(`/api/github/repo-files?${searchParams.toString()}`, {
+    cache: "no-store",
+  });
   const payload = (await response.json().catch(() => null)) as
     | GitHubRepoFilesResponse
     | { error?: string }

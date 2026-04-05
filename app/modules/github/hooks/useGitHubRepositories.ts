@@ -33,8 +33,6 @@ export function useGitHubRepositories(
     return Boolean(repoClientCache && repoClientCache.expiresAt > Date.now());
   });
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-
   const fetchRepositories = useCallback(async (refresh = false) => {
     if (!refresh && repoClientCache && repoClientCache.expiresAt > Date.now()) {
       setRepositories(repoClientCache.repositories);
@@ -55,8 +53,8 @@ export function useGitHubRepositories(
       const queryString = searchParams.toString();
       const response = await fetch(
         queryString
-          ? `${API_URL}/api/github/repos?${queryString}`
-          : `${API_URL}/api/github/repos`,
+          ? `/api/github/repos?${queryString}`
+          : "/api/github/repos",
         { cache: "no-store" },
       );
       const payload = (await response.json().catch(() => null)) as
