@@ -142,8 +142,10 @@ function getRouteErrorMessage(payload: unknown, fallbackMessage: string) {
   return fallbackMessage;
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+
 async function fetchWorkspaceSnapshot(workspaceId: string) {
-  const response = await fetch(`/api/workspaces/${workspaceId}`, {
+  const response = await fetch(`${API_URL}/api/workspaces/${workspaceId}`, {
     cache: "no-store",
   });
   const payload = (await response.json().catch(() => null)) as
@@ -152,21 +154,33 @@ async function fetchWorkspaceSnapshot(workspaceId: string) {
     | null;
 
   if (!response.ok) {
-    throw new Error(getRouteErrorMessage(payload, "Unable to load the workspace."));
+    throw new Error(
+      getRouteErrorMessage(payload, "Unable to load the workspace."),
+    );
   }
 
   return payload as WorkspaceSnapshot;
 }
 
-async function postWorkspaceJson<T>(workspaceId: string, segment: string, body: unknown) {
-  const response = await fetch(`/api/workspaces/${workspaceId}/${segment}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+async function postWorkspaceJson<T>(
+  workspaceId: string,
+  segment: string,
+  body: unknown,
+) {
+  const response = await fetch(
+    `${API_URL}/api/workspaces/${workspaceId}/${segment}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  });
-  const payload = (await response.json().catch(() => null)) as T | { error?: string } | null;
+  );
+  const payload = (await response.json().catch(() => null)) as
+    | T
+    | { error?: string }
+    | null;
 
   if (!response.ok) {
     throw new Error(getRouteErrorMessage(payload, "Workspace request failed."));
@@ -231,11 +245,13 @@ export function WorkspacePlaygroundShell({
     initialSnapshot.currentUser,
   );
   const [fileStates, setFileStates] = useState(initialSnapshot.fileStates);
-  const [chatMessages, setChatMessages] = useState(initialSnapshot.chatMessages);
+  const [chatMessages, setChatMessages] = useState(
+    initialSnapshot.chatMessages,
+  );
   const [activities, setActivities] = useState(initialSnapshot.activities);
   const [presence, setPresence] = useState<WorkspacePresence[]>([]);
-  const [workspaceSyncedContents, setWorkspaceSyncedContents] = useState(
-    () => getTemplateFileContentMap(initialSnapshot.templateData),
+  const [workspaceSyncedContents, setWorkspaceSyncedContents] = useState(() =>
+    getTemplateFileContentMap(initialSnapshot.templateData),
   );
   const [pendingFileUpdates, setPendingFileUpdates] = useState<
     Record<string, FilePushEvent>
@@ -252,17 +268,22 @@ export function WorkspacePlaygroundShell({
   const [inviteEmailDraft, setInviteEmailDraft] = useState("");
   const [latestInviteUrl, setLatestInviteUrl] = useState<string | null>(null);
   const [isSendingInvites, setIsSendingInvites] = useState(false);
-  const [memberActionInFlightId, setMemberActionInFlightId] = useState<string | null>(null);
+  const [memberActionInFlightId, setMemberActionInFlightId] = useState<
+    string | null
+  >(null);
   const [isLoadingRemoteUpdate, setIsLoadingRemoteUpdate] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>("__unassigned__");
+  const [selectedAssigneeId, setSelectedAssigneeId] =
+    useState<string>("__unassigned__");
   const [restartKey, setRestartKey] = useState(0);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [selectedImportRepository, setSelectedImportRepository] =
     useState<GitHubRepositorySummary | null>(null);
   const [isImportingRepository, setIsImportingRepository] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
-  const [socket, setSocket] = useState<Awaited<ReturnType<typeof getWorkspaceSocket>> | null>(null);
+  const [socket, setSocket] = useState<Awaited<
+    ReturnType<typeof getWorkspaceSocket>
+  > | null>(null);
   const terminalRef = useRef<TerminalRef | null>(null);
   const hasNormalizedRightRailWidthRef = useRef(false);
   const hasAutoOpenedVoicePanelRef = useRef(false);
@@ -279,7 +300,10 @@ export function WorkspacePlaygroundShell({
   const collaborationColumnWidth = 360;
   const runtimeColumnMinWidth = 320;
 
-  const fileStateMap = useMemo(() => buildFileStateMap(fileStates), [fileStates]);
+  const fileStateMap = useMemo(
+    () => buildFileStateMap(fileStates),
+    [fileStates],
+  );
   const activeCollaboratorNamesByPath = useMemo(
     () => buildActiveCollaboratorNamesByPath(presence, currentUser.userId),
     [currentUser.userId, presence],
@@ -333,7 +357,10 @@ export function WorkspacePlaygroundShell({
   const workspaceDirtyFileIds = useMemo(
     () =>
       flattenedFiles
-        .filter((file) => file.file.content !== (workspaceSyncedContents[file.id] ?? ""))
+        .filter(
+          (file) =>
+            file.file.content !== (workspaceSyncedContents[file.id] ?? ""),
+        )
         .map((file) => file.id),
     [flattenedFiles, workspaceSyncedContents],
   );
@@ -354,13 +381,19 @@ export function WorkspacePlaygroundShell({
     return fileStateMap.get(path)?.assignedUserId === currentUser.userId;
   };
 
-  const activeFileState = activeFile ? fileStateMap.get(activeFile.path) ?? null : null;
+  const activeFileState = activeFile
+    ? (fileStateMap.get(activeFile.path) ?? null)
+    : null;
   const activeFileAssigneeName = activeFileState?.assignedUserName ?? null;
   const activeFileCollaborators = activeFile
-    ? activeCollaboratorNamesByPath[activeFile.path] ?? []
+    ? (activeCollaboratorNamesByPath[activeFile.path] ?? [])
     : [];
-  const activeFilePendingUpdate = activeFile ? pendingFileUpdates[activeFile.path] ?? null : null;
-  const isActiveFileReadOnly = activeFile ? !canEditPath(activeFile.path, "file") : false;
+  const activeFilePendingUpdate = activeFile
+    ? (pendingFileUpdates[activeFile.path] ?? null)
+    : null;
+  const isActiveFileReadOnly = activeFile
+    ? !canEditPath(activeFile.path, "file")
+    : false;
 
   const workspaceStatus = useMemo(() => {
     if (activeFilePendingUpdate) {
@@ -388,33 +421,48 @@ export function WorkspacePlaygroundShell({
       tone: "success" as const,
       label: "Workspace sync is up to date.",
     };
-  }, [activeFile, activeFilePendingUpdate, isActiveFileReadOnly, workspaceDirtyFileIds]);
+  }, [
+    activeFile,
+    activeFilePendingUpdate,
+    isActiveFileReadOnly,
+    workspaceDirtyFileIds,
+  ]);
 
-  const mergeTimelineItem = useEffectEvent((
-    message: WorkspaceActivity | WorkspaceChatMessage,
-    kind: "chat" | "activity",
-  ) => {
-    if (kind === "chat") {
-      setChatMessages((currentMessages) => {
-        const typedMessage = message as WorkspaceChatMessage;
-        if (currentMessages.some((currentMessage) => currentMessage.id === typedMessage.id)) {
-          return currentMessages;
-        }
+  const mergeTimelineItem = useEffectEvent(
+    (
+      message: WorkspaceActivity | WorkspaceChatMessage,
+      kind: "chat" | "activity",
+    ) => {
+      if (kind === "chat") {
+        setChatMessages((currentMessages) => {
+          const typedMessage = message as WorkspaceChatMessage;
+          if (
+            currentMessages.some(
+              (currentMessage) => currentMessage.id === typedMessage.id,
+            )
+          ) {
+            return currentMessages;
+          }
 
-        return [...currentMessages, typedMessage];
-      });
-      return;
-    }
-
-    setActivities((currentActivities) => {
-      const typedActivity = message as WorkspaceActivity;
-      if (currentActivities.some((currentActivity) => currentActivity.id === typedActivity.id)) {
-        return currentActivities;
+          return [...currentMessages, typedMessage];
+        });
+        return;
       }
 
-      return [typedActivity, ...currentActivities];
-    });
-  });
+      setActivities((currentActivities) => {
+        const typedActivity = message as WorkspaceActivity;
+        if (
+          currentActivities.some(
+            (currentActivity) => currentActivity.id === typedActivity.id,
+          )
+        ) {
+          return currentActivities;
+        }
+
+        return [typedActivity, ...currentActivities];
+      });
+    },
+  );
 
   const applySnapshotMetadata = (nextSnapshot: WorkspaceSnapshot) => {
     setSnapshot(nextSnapshot);
@@ -439,16 +487,28 @@ export function WorkspacePlaygroundShell({
 
   async function replaceWorkspaceState(nextSnapshot: WorkspaceSnapshot) {
     applySnapshotMetadata(nextSnapshot);
-    setWorkspaceSyncedContents(getTemplateFileContentMap(nextSnapshot.templateData));
+    setWorkspaceSyncedContents(
+      getTemplateFileContentMap(nextSnapshot.templateData),
+    );
     setPendingFileUpdates({});
     setPendingWorkspaceUpdate(null);
     loadTemplate(nextSnapshot.templateData, {
-      activeFileId: activeFileId && nextSnapshot.fileStates.some((fileState) => fileState.path === activeFileId)
-        ? activeFileId
-        : nextSnapshot.fileStates.find((fileState) => fileState.type === "FILE")?.path ?? null,
+      activeFileId:
+        activeFileId &&
+        nextSnapshot.fileStates.some(
+          (fileState) => fileState.path === activeFileId,
+        )
+          ? activeFileId
+          : (nextSnapshot.fileStates.find(
+              (fileState) => fileState.type === "FILE",
+            )?.path ?? null),
       openFileIds: openFiles
         .map((file) => file.id)
-        .filter((fileId) => nextSnapshot.fileStates.some((fileState) => fileState.path === fileId)),
+        .filter((fileId) =>
+          nextSnapshot.fileStates.some(
+            (fileState) => fileState.path === fileId,
+          ),
+        ),
     });
   }
 
@@ -466,7 +526,9 @@ export function WorkspacePlaygroundShell({
       toast.success(`Saved ${savedFile.path}`);
     } catch (saveError) {
       toast.error(
-        saveError instanceof Error ? saveError.message : "Unable to save that file.",
+        saveError instanceof Error
+          ? saveError.message
+          : "Unable to save that file.",
       );
     }
   }
@@ -524,8 +586,12 @@ export function WorkspacePlaygroundShell({
       });
 
       setFileStates((currentStates) => {
-        const nextStates = currentStates.filter((state) => state.path !== result.fileState.path);
-        return [...nextStates, result.fileState].sort((left, right) => left.path.localeCompare(right.path));
+        const nextStates = currentStates.filter(
+          (state) => state.path !== result.fileState.path,
+        );
+        return [...nextStates, result.fileState].sort((left, right) =>
+          left.path.localeCompare(right.path),
+        );
       });
       setWorkspaceSyncedContents((currentContents) => ({
         ...currentContents,
@@ -538,7 +604,9 @@ export function WorkspacePlaygroundShell({
       });
       toast.success(`Pushed ${targetFile.path} to the workspace.`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to push that file.");
+      toast.error(
+        error instanceof Error ? error.message : "Unable to push that file.",
+      );
     }
   }
 
@@ -547,7 +615,9 @@ export function WorkspacePlaygroundShell({
       return;
     }
 
-    const hasUnsavedLocalChanges = workspaceDirtyFileIds.includes(activeFile.path);
+    const hasUnsavedLocalChanges = workspaceDirtyFileIds.includes(
+      activeFile.path,
+    );
 
     if (
       hasUnsavedLocalChanges &&
@@ -578,7 +648,9 @@ export function WorkspacePlaygroundShell({
       });
       toast.success(`Loaded the latest update for ${activeFile.path}.`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to load that update.");
+      toast.error(
+        error instanceof Error ? error.message : "Unable to load that update.",
+      );
     } finally {
       setIsLoadingRemoteUpdate(false);
     }
@@ -597,10 +669,14 @@ export function WorkspacePlaygroundShell({
     });
 
     if (input.kind === "folder") {
-      const createdPath = [input.parentPath, input.name.trim()].filter(Boolean).join("/");
+      const createdPath = [input.parentPath, input.name.trim()]
+        .filter(Boolean)
+        .join("/");
       await createDirectory(createdPath);
     } else {
-      const createdPath = [input.parentPath, input.name.trim()].filter(Boolean).join("/");
+      const createdPath = [input.parentPath, input.name.trim()]
+        .filter(Boolean)
+        .join("/");
       await writeFile(createdPath, "");
     }
 
@@ -617,7 +693,10 @@ export function WorkspacePlaygroundShell({
       nextName,
     });
 
-    const nextPath = [nodePath.split("/").slice(0, -1).join("/"), nextName.trim()]
+    const nextPath = [
+      nodePath.split("/").slice(0, -1).join("/"),
+      nextName.trim(),
+    ]
       .filter(Boolean)
       .join("/");
     await renameEntry(nodePath, nextPath);
@@ -643,7 +722,8 @@ export function WorkspacePlaygroundShell({
       return;
     }
 
-    const assignedUserId = selectedAssigneeId === "__unassigned__" ? null : selectedAssigneeId;
+    const assignedUserId =
+      selectedAssigneeId === "__unassigned__" ? null : selectedAssigneeId;
 
     try {
       const result = await postWorkspaceJson<{
@@ -655,13 +735,19 @@ export function WorkspacePlaygroundShell({
       });
 
       setFileStates((currentStates) => {
-        const nextStates = currentStates.filter((fileState) => fileState.path !== result.fileState.path);
-        return [...nextStates, result.fileState].sort((left, right) => left.path.localeCompare(right.path));
+        const nextStates = currentStates.filter(
+          (fileState) => fileState.path !== result.fileState.path,
+        );
+        return [...nextStates, result.fileState].sort((left, right) =>
+          left.path.localeCompare(right.path),
+        );
       });
       setIsAssignDialogOpen(false);
       toast.success(`Updated the assignment for ${activeFile.path}.`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to assign that file.");
+      toast.error(
+        error instanceof Error ? error.message : "Unable to assign that file.",
+      );
     }
   }
 
@@ -684,7 +770,11 @@ export function WorkspacePlaygroundShell({
           });
 
       setChatMessages((currentMessages) => {
-        if (currentMessages.some((currentMessage) => currentMessage.id === message.id)) {
+        if (
+          currentMessages.some(
+            (currentMessage) => currentMessage.id === message.id,
+          )
+        ) {
           return currentMessages;
         }
 
@@ -692,7 +782,9 @@ export function WorkspacePlaygroundShell({
       });
       setChatDraft("");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to send that message.");
+      toast.error(
+        error instanceof Error ? error.message : "Unable to send that message.",
+      );
     } finally {
       setIsSendingChat(false);
     }
@@ -710,7 +802,11 @@ export function WorkspacePlaygroundShell({
       await navigator.clipboard.writeText(result.inviteUrl);
       toast.success("Invite link copied.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to create an invite link.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to create an invite link.",
+      );
     }
   }
 
@@ -744,7 +840,11 @@ export function WorkspacePlaygroundShell({
           : `Sent ${result.emailResult.sentCount} invite email${result.emailResult.sentCount === 1 ? "" : "s"}.`,
       );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to send invite emails.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to send invite emails.",
+      );
     } finally {
       setIsSendingInvites(false);
     }
@@ -765,7 +865,11 @@ export function WorkspacePlaygroundShell({
 
       return result;
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to update that collaborator.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to update that collaborator.",
+      );
       return null;
     } finally {
       setMemberActionInFlightId(null);
@@ -808,14 +912,19 @@ export function WorkspacePlaygroundShell({
     }
   }
 
-  async function handleToggleVoiceMute(memberId: string, isVoiceMuted: boolean) {
+  async function handleToggleVoiceMute(
+    memberId: string,
+    isVoiceMuted: boolean,
+  ) {
     const result = await runMemberAction(memberId, {
       action: "set-voice-mute",
       isVoiceMuted,
     });
 
     if (result) {
-      toast.success(isVoiceMuted ? "Voice access muted." : "Voice access restored.");
+      toast.success(
+        isVoiceMuted ? "Voice access muted." : "Voice access restored.",
+      );
     }
   }
 
@@ -839,10 +948,12 @@ export function WorkspacePlaygroundShell({
 
     try {
       const repositoryFullName = selectedImportRepository.full_name;
-      const result = await postWorkspaceJson<GitHubRepoFilesResponse & {
-        templateData: WorkspaceSnapshot["templateData"];
-        preferredOpenPath: string | null;
-      }>(snapshot.id, "sync", {
+      const result = await postWorkspaceJson<
+        GitHubRepoFilesResponse & {
+          templateData: WorkspaceSnapshot["templateData"];
+          preferredOpenPath: string | null;
+        }
+      >(snapshot.id, "sync", {
         repositoryFullName,
       });
 
@@ -855,7 +966,9 @@ export function WorkspacePlaygroundShell({
       return result;
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Unable to import that repository.";
+        error instanceof Error
+          ? error.message
+          : "Unable to import that repository.";
       setImportError(message);
       toast.error(message);
       return null;
@@ -889,12 +1002,14 @@ export function WorkspacePlaygroundShell({
     };
   }, []);
 
-  const joinWorkspaceRoom = useEffectEvent((connectedSocket: NonNullable<typeof socket>) => {
-    connectedSocket.emit("workspace:join", {
-      workspaceId: snapshot.id,
-      activeFilePath: activeFileId,
-    });
-  });
+  const joinWorkspaceRoom = useEffectEvent(
+    (connectedSocket: NonNullable<typeof socket>) => {
+      connectedSocket.emit("workspace:join", {
+        workspaceId: snapshot.id,
+        activeFilePath: activeFileId,
+      });
+    },
+  );
 
   const handleSaveFileShortcut = useEffectEvent((fileId?: string) => {
     void handleSaveFile(fileId);
@@ -936,46 +1051,49 @@ export function WorkspacePlaygroundShell({
       });
     };
 
-      const handleTreeUpdate = (event: WorkspaceTreeUpdateEvent) => {
-        if (event.actor.userId === currentUser.userId) {
-          return;
-        }
+    const handleTreeUpdate = (event: WorkspaceTreeUpdateEvent) => {
+      if (event.actor.userId === currentUser.userId) {
+        return;
+      }
 
       setPendingWorkspaceUpdate({
         summary: event.summary,
       });
     };
 
-      const handleChat = (message: WorkspaceChatMessage) => {
-        mergeTimelineItem(message, "chat");
+    const handleChat = (message: WorkspaceChatMessage) => {
+      mergeTimelineItem(message, "chat");
 
-        if (message.author.userId !== currentUser.userId && activePanelTab !== "chat") {
-          setUnreadChatCount((currentCount) => currentCount + 1);
+      if (
+        message.author.userId !== currentUser.userId &&
+        activePanelTab !== "chat"
+      ) {
+        setUnreadChatCount((currentCount) => currentCount + 1);
       }
     };
 
-      const handleActivity = (activityItem: WorkspaceActivity) => {
-        mergeTimelineItem(activityItem, "activity");
+    const handleActivity = (activityItem: WorkspaceActivity) => {
+      mergeTimelineItem(activityItem, "activity");
 
-        if (activePanelTab !== "activity") {
-          setUnreadActivityCount((currentCount) => currentCount + 1);
+      if (activePanelTab !== "activity") {
+        setUnreadActivityCount((currentCount) => currentCount + 1);
       }
     };
 
-      const handleMembersChanged = () => {
-        startTransition(() => {
-          void fetchWorkspaceSnapshot(snapshot.id)
-            .then((nextSnapshot) => {
-              applySnapshotMetadata(nextSnapshot);
-            })
-            .catch((error) => {
-              if (error instanceof Error && /access/i.test(error.message)) {
-                toast.error("You no longer have access to this workspace.");
-                router.push("/dashboard");
-              }
-            });
-        });
-      };
+    const handleMembersChanged = () => {
+      startTransition(() => {
+        void fetchWorkspaceSnapshot(snapshot.id)
+          .then((nextSnapshot) => {
+            applySnapshotMetadata(nextSnapshot);
+          })
+          .catch((error) => {
+            if (error instanceof Error && /access/i.test(error.message)) {
+              toast.error("You no longer have access to this workspace.");
+              router.push("/dashboard");
+            }
+          });
+      });
+    };
 
     handleConnect();
     socket.on("connect", handleConnect);
@@ -1030,7 +1148,10 @@ export function WorkspacePlaygroundShell({
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "s") {
+      if (
+        !(event.metaKey || event.ctrlKey) ||
+        event.key.toLowerCase() !== "s"
+      ) {
         return;
       }
 
@@ -1086,8 +1207,13 @@ export function WorkspacePlaygroundShell({
 
     hasNormalizedRightRailWidthRef.current = true;
 
-    if (layout.rightRailWidth < runtimeColumnMinWidth + collaborationColumnWidth) {
-      layout.setRightRailWidth(runtimeColumnMinWidth + collaborationColumnWidth + 80);
+    if (
+      layout.rightRailWidth <
+      runtimeColumnMinWidth + collaborationColumnWidth
+    ) {
+      layout.setRightRailWidth(
+        runtimeColumnMinWidth + collaborationColumnWidth + 80,
+      );
     }
   }, [layout, runtimeColumnMinWidth, collaborationColumnWidth]);
 
@@ -1107,7 +1233,9 @@ export function WorkspacePlaygroundShell({
         runtimeColumnMinWidth,
       );
   const workspaceGridTemplateColumns = (() => {
-    const leftColumn = layout.explorerOpen ? `${layout.explorerWidth}px` : "0px";
+    const leftColumn = layout.explorerOpen
+      ? `${layout.explorerWidth}px`
+      : "0px";
     const leftHandle = layout.explorerOpen ? "10px" : "0px";
     const rightHandle = layout.isRightRailVisible ? "10px" : "0px";
     const rightColumn = layout.isRightRailVisible
@@ -1133,12 +1261,16 @@ export function WorkspacePlaygroundShell({
       dirtyFileIds={dirtyFileIds}
       assignedUserNames={assignedUserNamesByPath}
       activeCollaboratorNamesByPath={activeCollaboratorNamesByPath}
-      canCreateEntries={currentUser.role !== "MEMBER" || snapshot.rules === "LENIENT"}
+      canCreateEntries={
+        currentUser.role !== "MEMBER" || snapshot.rules === "LENIENT"
+      }
       canEditPath={canEditPath}
       onToggleCollapse={layout.toggleExplorer}
       onSelectFile={selectFile}
       onCreateNode={(input) => void handleCreateNode(input)}
-      onRenameNode={(nodePath, nextName) => void handleRenameNode(nodePath, nextName)}
+      onRenameNode={(nodePath, nextName) =>
+        void handleRenameNode(nodePath, nextName)
+      }
       onDeleteNode={(nodePath) => void handleDeleteNode(nodePath)}
     />
   );
@@ -1169,7 +1301,9 @@ export function WorkspacePlaygroundShell({
       onPushFile={(fileId) => void handlePushFile(fileId)}
       onLoadPendingUpdate={() => void handleLoadPendingUpdate()}
       onRequestAssignActiveFile={() => {
-        setSelectedAssigneeId(activeFileState?.assignedUserId ?? "__unassigned__");
+        setSelectedAssigneeId(
+          activeFileState?.assignedUserId ?? "__unassigned__",
+        );
         setIsAssignDialogOpen(true);
       }}
     />
@@ -1215,7 +1349,9 @@ export function WorkspacePlaygroundShell({
       onToggleVoiceMute={(memberId, isVoiceMuted) =>
         void handleToggleVoiceMute(memberId, isVoiceMuted)
       }
-      className={layout.isCompactViewport ? "border-l-0 border-t border-white/10" : ""}
+      className={
+        layout.isCompactViewport ? "border-l-0 border-t border-white/10" : ""
+      }
     />
   );
 
@@ -1242,7 +1378,9 @@ export function WorkspacePlaygroundShell({
           {layout.previewOpen ? (
             <PanelResizeHandle
               orientation="horizontal"
-              onResize={(delta) => layout.setTerminalHeight(layout.terminalHeight - delta)}
+              onResize={(delta) =>
+                layout.setTerminalHeight(layout.terminalHeight - delta)
+              }
               className="border-y border-white/10 bg-[#060b16]"
             />
           ) : null}
@@ -1281,7 +1419,9 @@ export function WorkspacePlaygroundShell({
   const rightRailContent = layout.isCompactViewport ? (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#050816] transition-all duration-200">
       {hasRuntimePanels ? (
-        <div className="min-h-0 flex-[1.15] overflow-hidden">{runtimeContent}</div>
+        <div className="min-h-0 flex-[1.15] overflow-hidden">
+          {runtimeContent}
+        </div>
       ) : null}
       {layout.collaborationOpen ? (
         <div
@@ -1295,7 +1435,8 @@ export function WorkspacePlaygroundShell({
       ) : null}
       {!hasRuntimePanels && !layout.collaborationOpen ? (
         <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-white/45">
-          Enable preview, terminal, or comms from the toolbar to open the right rail.
+          Enable preview, terminal, or comms from the toolbar to open the right
+          rail.
         </div>
       ) : null}
     </div>
@@ -1312,9 +1453,7 @@ export function WorkspacePlaygroundShell({
       }}
     >
       {hasRuntimePanels ? (
-        <div className="min-h-0 min-w-0 overflow-hidden">
-          {runtimeContent}
-        </div>
+        <div className="min-h-0 min-w-0 overflow-hidden">{runtimeContent}</div>
       ) : null}
 
       {layout.collaborationOpen ? (
@@ -1325,7 +1464,8 @@ export function WorkspacePlaygroundShell({
 
       {!hasRuntimePanels && !layout.collaborationOpen ? (
         <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-white/45">
-          Enable preview, terminal, or comms from the toolbar to open the right rail.
+          Enable preview, terminal, or comms from the toolbar to open the right
+          rail.
         </div>
       ) : null}
     </div>
@@ -1347,7 +1487,8 @@ export function WorkspacePlaygroundShell({
           <DialogHeader>
             <DialogTitle>Sync from GitHub</DialogTitle>
             <DialogDescription>
-              Replace the current workspace files with a repository import and notify the team.
+              Replace the current workspace files with a repository import and
+              notify the team.
             </DialogDescription>
           </DialogHeader>
 
@@ -1429,7 +1570,10 @@ export function WorkspacePlaygroundShell({
               >
                 <div className="flex items-center justify-between gap-3">
                   <span>{member.name}</span>
-                  <Badge variant="outline" className="border-white/10 bg-white/5 text-white/70">
+                  <Badge
+                    variant="outline"
+                    className="border-white/10 bg-white/5 text-white/70"
+                  >
                     {member.role}
                   </Badge>
                 </div>
@@ -1438,7 +1582,11 @@ export function WorkspacePlaygroundShell({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsAssignDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button type="button" onClick={() => void handleAssignActiveFile()}>
@@ -1605,7 +1753,9 @@ export function WorkspacePlaygroundShell({
                       return;
                     }
 
-                    const nextSnapshot = await fetchWorkspaceSnapshot(snapshot.id);
+                    const nextSnapshot = await fetchWorkspaceSnapshot(
+                      snapshot.id,
+                    );
                     await replaceWorkspaceState(nextSnapshot);
                   })().catch((loadError) => {
                     toast.error(
@@ -1624,12 +1774,13 @@ export function WorkspacePlaygroundShell({
           <div className="flex flex-shrink-0 flex-col gap-1 border-b border-white/10 bg-[#060b16] px-4 py-2 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between">
             <span>
               {openFiles.length} open tab{openFiles.length === 1 ? "" : "s"} and{" "}
-              {dirtyFileIds.length} unsaved change{dirtyFileIds.length === 1 ? "" : "s"}
+              {dirtyFileIds.length} unsaved change
+              {dirtyFileIds.length === 1 ? "" : "s"}
             </span>
             <span className="sm:text-right">
               {workspaceDirtyFileIds.length} file
-              {workspaceDirtyFileIds.length === 1 ? "" : "s"} waiting to be pushed to the
-              workspace
+              {workspaceDirtyFileIds.length === 1 ? "" : "s"} waiting to be
+              pushed to the workspace
             </span>
           </div>
 
@@ -1656,7 +1807,9 @@ export function WorkspacePlaygroundShell({
                 <div />
               )}
 
-              <div className="min-h-0 min-w-0 overflow-hidden">{editorContent}</div>
+              <div className="min-h-0 min-w-0 overflow-hidden">
+                {editorContent}
+              </div>
 
               {layout.isRightRailVisible ? (
                 <PanelResizeHandle
@@ -1680,13 +1833,21 @@ export function WorkspacePlaygroundShell({
             </div>
 
             <div className="flex h-full min-h-0 lg:hidden">
-              <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{editorContent}</div>
+              <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                {editorContent}
+              </div>
             </div>
           </div>
         </div>
 
-        <Sheet open={layout.explorerSheetOpen} onOpenChange={layout.setExplorerSheetOpen}>
-          <SheetContent side="left" className="w-full max-w-sm border-white/10 bg-[#050816] p-0 text-white">
+        <Sheet
+          open={layout.explorerSheetOpen}
+          onOpenChange={layout.setExplorerSheetOpen}
+        >
+          <SheetContent
+            side="left"
+            className="w-full max-w-sm border-white/10 bg-[#050816] p-0 text-white"
+          >
             <SheetHeader className="border-b border-white/10 px-4 py-4 text-left">
               <SheetTitle className="text-white">Explorer</SheetTitle>
               <SheetDescription className="text-white/55">
@@ -1700,7 +1861,9 @@ export function WorkspacePlaygroundShell({
                 dirtyFileIds={dirtyFileIds}
                 assignedUserNames={assignedUserNamesByPath}
                 activeCollaboratorNamesByPath={activeCollaboratorNamesByPath}
-                canCreateEntries={currentUser.role !== "MEMBER" || snapshot.rules === "LENIENT"}
+                canCreateEntries={
+                  currentUser.role !== "MEMBER" || snapshot.rules === "LENIENT"
+                }
                 canEditPath={canEditPath}
                 onToggleCollapse={() => layout.setExplorerSheetOpen(false)}
                 onSelectFile={(fileId) => {
@@ -1708,22 +1871,33 @@ export function WorkspacePlaygroundShell({
                   layout.setExplorerSheetOpen(false);
                 }}
                 onCreateNode={(input) => void handleCreateNode(input)}
-                onRenameNode={(nodePath, nextName) => void handleRenameNode(nodePath, nextName)}
+                onRenameNode={(nodePath, nextName) =>
+                  void handleRenameNode(nodePath, nextName)
+                }
                 onDeleteNode={(nodePath) => void handleDeleteNode(nodePath)}
               />
             </div>
           </SheetContent>
         </Sheet>
 
-        <Sheet open={layout.rightRailSheetOpen} onOpenChange={layout.setRightRailSheetOpen}>
-          <SheetContent side="right" className="w-full max-w-md border-white/10 bg-[#050816] p-0 text-white">
+        <Sheet
+          open={layout.rightRailSheetOpen}
+          onOpenChange={layout.setRightRailSheetOpen}
+        >
+          <SheetContent
+            side="right"
+            className="w-full max-w-md border-white/10 bg-[#050816] p-0 text-white"
+          >
             <SheetHeader className="border-b border-white/10 px-4 py-4 text-left">
               <SheetTitle className="text-white">Right Rail</SheetTitle>
               <SheetDescription className="text-white/55">
-                Preview, terminal, and collaboration stay available here on smaller screens.
+                Preview, terminal, and collaboration stay available here on
+                smaller screens.
               </SheetDescription>
             </SheetHeader>
-            <div className="min-h-0 flex-1 overflow-hidden">{rightRailContent}</div>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              {rightRailContent}
+            </div>
           </SheetContent>
         </Sheet>
       </main>

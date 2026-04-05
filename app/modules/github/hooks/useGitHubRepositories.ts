@@ -18,18 +18,22 @@ export function useGitHubRepositories(
   options: UseGitHubRepositoriesOptions = {},
 ) {
   const { enabled = true } = options;
-  const [repositories, setRepositories] = useState<GitHubRepositorySummary[]>(() => {
-    if (repoClientCache && repoClientCache.expiresAt > Date.now()) {
-      return repoClientCache.repositories;
-    }
+  const [repositories, setRepositories] = useState<GitHubRepositorySummary[]>(
+    () => {
+      if (repoClientCache && repoClientCache.expiresAt > Date.now()) {
+        return repoClientCache.repositories;
+      }
 
-    return [];
-  });
+      return [];
+    },
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasLoaded, setHasLoaded] = useState(() => {
     return Boolean(repoClientCache && repoClientCache.expiresAt > Date.now());
   });
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
   const fetchRepositories = useCallback(async (refresh = false) => {
     if (!refresh && repoClientCache && repoClientCache.expiresAt > Date.now()) {
@@ -50,10 +54,12 @@ export function useGitHubRepositories(
 
       const queryString = searchParams.toString();
       const response = await fetch(
-        queryString ? `/api/github/repos?${queryString}` : "/api/github/repos",
+        queryString
+          ? `${API_URL}/api/github/repos?${queryString}`
+          : `${API_URL}/api/github/repos`,
         { cache: "no-store" },
       );
-      const payload = await response.json().catch(() => null) as
+      const payload = (await response.json().catch(() => null)) as
         | GitHubReposResponse
         | { error?: string }
         | null;

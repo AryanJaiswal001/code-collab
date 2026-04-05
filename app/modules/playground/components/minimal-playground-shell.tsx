@@ -81,14 +81,19 @@ const LazyWebContainerPreview = dynamic(
   },
 );
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+
 async function fetchGitHubRepositoryFiles(repositoryFullName: string) {
   const searchParams = new URLSearchParams({
     repo: repositoryFullName,
   });
-  const response = await fetch(`/api/github/repo-files?${searchParams.toString()}`, {
-    cache: "no-store",
-  });
-  const payload = await response.json().catch(() => null) as
+  const response = await fetch(
+    `${API_URL}/api/github/repo-files?${searchParams.toString()}`,
+    {
+      cache: "no-store",
+    },
+  );
+  const payload = (await response.json().catch(() => null)) as
     | GitHubRepoFilesResponse
     | { error?: string }
     | null;
@@ -128,8 +133,9 @@ function ImportingRepositoryPanel({
         </div>
         <p className="mt-4 text-sm font-semibold">Importing repository</p>
         <p className="mt-2 text-sm leading-6 text-white/55">
-          Loading files from <span className="font-medium text-white">{repositoryFullName}</span>
-          {" "}and preparing the workspace preview.
+          Loading files from{" "}
+          <span className="font-medium text-white">{repositoryFullName}</span>{" "}
+          and preparing the workspace preview.
         </p>
       </div>
     </div>
@@ -159,7 +165,9 @@ export function MinimalPlaygroundShell({
     useState<GitHubRepositorySummary | null>(null);
   const [importedRepository, setImportedRepository] =
     useState<GitHubRepositorySummary | null>(null);
-  const [detectedProjectType, setDetectedProjectType] = useState<string | null>(null);
+  const [detectedProjectType, setDetectedProjectType] = useState<string | null>(
+    null,
+  );
   const [isImportingRepository, setIsImportingRepository] = useState(
     Boolean(initialRepositoryFullName),
   );
@@ -260,7 +268,9 @@ export function MinimalPlaygroundShell({
           const importedSummary = payload.stats.skippedFileCount
             ? `Imported ${payload.stats.importedFileCount} files and skipped ${payload.stats.skippedFileCount}.`
             : `Imported ${payload.stats.importedFileCount} files.`;
-          toast.success(`${payload.repository.full_name} loaded. ${importedSummary}`);
+          toast.success(
+            `${payload.repository.full_name} loaded. ${importedSummary}`,
+          );
         }
 
         return payload;
@@ -278,23 +288,28 @@ export function MinimalPlaygroundShell({
     [hasDirtyFiles, loadTemplate, templateData.items.length],
   );
 
-  const handleSaveFile = useCallback(async (fileId?: string) => {
-    const savedFile = prepareSaveFile(fileId);
-    if (!savedFile) {
-      toast.message("Nothing to save.");
-      return;
-    }
+  const handleSaveFile = useCallback(
+    async (fileId?: string) => {
+      const savedFile = prepareSaveFile(fileId);
+      if (!savedFile) {
+        toast.message("Nothing to save.");
+        return;
+      }
 
-    try {
-      await writeFile(savedFile.path, savedFile.content);
-      markFilesSaved([savedFile]);
-      toast.success(`Saved ${savedFile.path}`);
-    } catch (saveError) {
-      toast.error(
-        saveError instanceof Error ? saveError.message : "Unable to save that file.",
-      );
-    }
-  }, [markFilesSaved, prepareSaveFile, writeFile]);
+      try {
+        await writeFile(savedFile.path, savedFile.content);
+        markFilesSaved([savedFile]);
+        toast.success(`Saved ${savedFile.path}`);
+      } catch (saveError) {
+        toast.error(
+          saveError instanceof Error
+            ? saveError.message
+            : "Unable to save that file.",
+        );
+      }
+    },
+    [markFilesSaved, prepareSaveFile, writeFile],
+  );
 
   const handleSaveAllFiles = useCallback(async () => {
     const savedFiles = prepareSaveAllFiles();
@@ -333,7 +348,9 @@ export function MinimalPlaygroundShell({
 
     const firstFailure = failedResults[0]?.reason;
     toast.error(
-      firstFailure instanceof Error ? firstFailure.message : "Unable to save all files.",
+      firstFailure instanceof Error
+        ? firstFailure.message
+        : "Unable to save all files.",
     );
   }, [markFilesSaved, prepareSaveAllFiles, writeFile]);
 
@@ -468,7 +485,10 @@ export function MinimalPlaygroundShell({
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "s") {
+      if (
+        !(event.metaKey || event.ctrlKey) ||
+        event.key.toLowerCase() !== "s"
+      ) {
         return;
       }
 
@@ -499,21 +519,24 @@ export function MinimalPlaygroundShell({
     };
   }, [activeFileId, handleSaveAllFiles, handleSaveFile]);
 
-  const previewPanel = !isInitialImportResolved && initialRepositoryFullName ? (
-    <ImportingRepositoryPanel repositoryFullName={initialRepositoryFullName} />
-  ) : (
-    <LazyWebContainerPreview
-      templateData={templateData}
-      instance={instance}
-      isLoading={isLoading}
-      error={error?.message ?? null}
-      restartKey={restartKey}
-      onRestart={() => setRestartKey((value) => value + 1)}
-      runtimeKey={projectId}
-      showTerminalPanel={false}
-      terminalRef={terminalRef}
-    />
-  );
+  const previewPanel =
+    !isInitialImportResolved && initialRepositoryFullName ? (
+      <ImportingRepositoryPanel
+        repositoryFullName={initialRepositoryFullName}
+      />
+    ) : (
+      <LazyWebContainerPreview
+        templateData={templateData}
+        instance={instance}
+        isLoading={isLoading}
+        error={error?.message ?? null}
+        restartKey={restartKey}
+        onRestart={() => setRestartKey((value) => value + 1)}
+        runtimeKey={projectId}
+        showTerminalPanel={false}
+        terminalRef={terminalRef}
+      />
+    );
 
   const rightRailContent = (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#050816]">
@@ -528,7 +551,9 @@ export function MinimalPlaygroundShell({
           {layout.previewOpen ? (
             <PanelResizeHandle
               orientation="horizontal"
-              onResize={(delta) => layout.setTerminalHeight(layout.terminalHeight - delta)}
+              onResize={(delta) =>
+                layout.setTerminalHeight(layout.terminalHeight - delta)
+              }
               className="border-y border-white/10 bg-[#060b16]"
             />
           ) : null}
@@ -639,7 +664,7 @@ export function MinimalPlaygroundShell({
                   <p className="truncate text-xs text-white/45">
                     Workspace {projectId}
                   </p>
-                  {(importedRepository || detectedProjectType) ? (
+                  {importedRepository || detectedProjectType ? (
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       {importedRepository ? (
                         <Badge
@@ -852,8 +877,14 @@ export function MinimalPlaygroundShell({
           </div>
         </div>
 
-        <Sheet open={layout.explorerSheetOpen} onOpenChange={layout.setExplorerSheetOpen}>
-          <SheetContent side="left" className="w-full max-w-sm border-white/10 bg-[#050816] p-0 text-white">
+        <Sheet
+          open={layout.explorerSheetOpen}
+          onOpenChange={layout.setExplorerSheetOpen}
+        >
+          <SheetContent
+            side="left"
+            className="w-full max-w-sm border-white/10 bg-[#050816] p-0 text-white"
+          >
             <SheetHeader className="border-b border-white/10 px-4 py-4 text-left">
               <SheetTitle className="text-white">Explorer</SheetTitle>
               <SheetDescription className="text-white/55">
@@ -878,15 +909,23 @@ export function MinimalPlaygroundShell({
           </SheetContent>
         </Sheet>
 
-        <Sheet open={layout.rightRailSheetOpen} onOpenChange={layout.setRightRailSheetOpen}>
-          <SheetContent side="right" className="w-full max-w-md border-white/10 bg-[#050816] p-0 text-white">
+        <Sheet
+          open={layout.rightRailSheetOpen}
+          onOpenChange={layout.setRightRailSheetOpen}
+        >
+          <SheetContent
+            side="right"
+            className="w-full max-w-md border-white/10 bg-[#050816] p-0 text-white"
+          >
             <SheetHeader className="border-b border-white/10 px-4 py-4 text-left">
               <SheetTitle className="text-white">Runtime</SheetTitle>
               <SheetDescription className="text-white/55">
                 Preview and terminal stay available here on smaller screens.
               </SheetDescription>
             </SheetHeader>
-            <div className="min-h-0 flex-1 overflow-hidden">{rightRailContent}</div>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              {rightRailContent}
+            </div>
           </SheetContent>
         </Sheet>
       </main>

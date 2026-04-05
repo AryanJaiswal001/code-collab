@@ -7,6 +7,10 @@ type WorkspaceSocket = Socket;
 let socketPromise: Promise<WorkspaceSocket> | null = null;
 let activeSocket: WorkspaceSocket | null = null;
 
+// Helper to reliably use environment variables
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "";
+
 type RealtimeConnectionConfig =
   | {
       mode: "local";
@@ -20,7 +24,7 @@ type RealtimeConnectionConfig =
     };
 
 async function getRealtimeConnectionConfig() {
-  const response = await fetch("/api/realtime/token", {
+  const response = await fetch(`${API_URL}/api/realtime/token`, {
     method: "GET",
     cache: "no-store",
   });
@@ -36,7 +40,8 @@ async function createSocket() {
   const config = await getRealtimeConnectionConfig();
 
   if (config.mode === "external") {
-    const socket = io(config.url, {
+    const externalUrl = config.url || SOCKET_URL;
+    const socket = io(externalUrl, {
       path: config.path,
       autoConnect: true,
       withCredentials: false,
@@ -48,12 +53,12 @@ async function createSocket() {
     return socket;
   }
 
-  await fetch("/api/socket", {
+  await fetch(`${API_URL}/api/socket`, {
     method: "GET",
     cache: "no-store",
   });
 
-  const socket = io({
+  const socket = io(SOCKET_URL || undefined, {
     path: config.path,
     autoConnect: true,
     withCredentials: true,

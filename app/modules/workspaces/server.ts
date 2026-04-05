@@ -7,7 +7,10 @@ import { createStarterTemplate } from "../playground/lib";
 import type { TemplateFolder } from "../playground/types";
 import { importGitHubRepository } from "../github/server";
 import type { Project, ProjectUser, TemplateKind } from "../dashboard/types";
-import { buildTemplateFromWorkspaceEntries, createWorkspaceEntrySeeds } from "./entries";
+import {
+  buildTemplateFromWorkspaceEntries,
+  createWorkspaceEntrySeeds,
+} from "./entries";
 import { isInviteEmailConfigured, sendWorkspaceInviteEmails } from "./email";
 import type {
   FilePushEvent,
@@ -37,7 +40,8 @@ const globalForActivityDedupe = globalThis as typeof globalThis & {
 };
 
 const activityDedupe =
-  globalForActivityDedupe.__workspaceActivityDedupe ?? new Map<string, number>();
+  globalForActivityDedupe.__workspaceActivityDedupe ??
+  new Map<string, number>();
 
 if (process.env.NODE_ENV !== "production") {
   globalForActivityDedupe.__workspaceActivityDedupe = activityDedupe;
@@ -152,10 +156,7 @@ function getEmailHandle(email?: string | null) {
   return localPart?.trim() || null;
 }
 
-function inferActorName(user: {
-  name?: string | null;
-  email?: string | null;
-}) {
+function inferActorName(user: { name?: string | null; email?: string | null }) {
   return user.name?.trim() || getEmailHandle(user.email) || "Collaborator";
 }
 
@@ -221,7 +222,8 @@ function buildInviteUrlPath(token: string) {
 }
 
 function getAppOrigin() {
-  const configuredOrigin = process.env.AUTH_URL?.trim();
+  const configuredOrigin =
+    process.env.AUTH_URL?.trim() || process.env.NEXT_PUBLIC_API_URL?.trim();
 
   if (configuredOrigin) {
     try {
@@ -351,12 +353,16 @@ function serializeFileState(entry: WorkspaceEntryRecord): WorkspaceFileState {
     updatedAt: entry.updatedAt.toISOString(),
     updatedBy: entry.updatedBy ? mapUserToActor(entry.updatedBy) : null,
     assignedUserId: entry.assignedUserId ?? null,
-    assignedUserName: entry.assignedUser ? inferActorName(entry.assignedUser) : null,
+    assignedUserName: entry.assignedUser
+      ? inferActorName(entry.assignedUser)
+      : null,
     assignedUserImage: entry.assignedUser?.image ?? null,
   };
 }
 
-function serializeChatMessage(message: WorkspaceChatMessageRecord): WorkspaceChatMessage {
+function serializeChatMessage(
+  message: WorkspaceChatMessageRecord,
+): WorkspaceChatMessage {
   return {
     id: message.id,
     content: message.content,
@@ -365,7 +371,9 @@ function serializeChatMessage(message: WorkspaceChatMessageRecord): WorkspaceCha
   };
 }
 
-function serializeActivity(activity: WorkspaceActivityRecord): WorkspaceActivity {
+function serializeActivity(
+  activity: WorkspaceActivityRecord,
+): WorkspaceActivity {
   return {
     id: activity.id,
     type: activity.type,
@@ -404,7 +412,8 @@ async function requireCurrentUser() {
       name: sessionUser.name ?? null,
       email: sessionUser.email ?? null,
       image: sessionUser.image ?? null,
-      username: sessionUser.username ?? getEmailHandle(sessionUser.email) ?? null,
+      username:
+        sessionUser.username ?? getEmailHandle(sessionUser.email) ?? null,
     } satisfies SessionUserActor;
   }
 
@@ -476,13 +485,19 @@ async function ensureWorkspaceMember(
   }
 
   if (!member) {
-    throw new WorkspaceServiceError("You do not have access to that workspace.", 403);
+    throw new WorkspaceServiceError(
+      "You do not have access to that workspace.",
+      403,
+    );
   }
 
   return member;
 }
 
-async function getWorkspaceAccess(workspaceLink: string, user?: SessionUserActor) {
+async function getWorkspaceAccess(
+  workspaceLink: string,
+  user?: SessionUserActor,
+) {
   const currentUser = user ?? (await requireCurrentUser());
   const playground = await prisma.playground.findUnique({
     where: {
@@ -732,13 +747,14 @@ async function createInviteRecords(params: {
   emails: string[];
   role?: WorkspaceMemberRoleValue;
 }) {
-  const uniqueEmails = [...new Set(
-    params.emails
-      .map((email) => email.trim().toLowerCase())
-      .filter(Boolean),
-  )];
+  const uniqueEmails = [
+    ...new Set(
+      params.emails.map((email) => email.trim().toLowerCase()).filter(Boolean),
+    ),
+  ];
 
-  const invites: Array<WorkspaceInvite & { email: string; inviteUrl: string }> = [];
+  const invites: Array<WorkspaceInvite & { email: string; inviteUrl: string }> =
+    [];
 
   for (const email of uniqueEmails) {
     const token = createInviteToken();
@@ -765,7 +781,9 @@ async function createInviteRecords(params: {
   return invites;
 }
 
-export async function getAllWorkspaceProjectsForCurrentUser(): Promise<Project[]> {
+export async function getAllWorkspaceProjectsForCurrentUser(): Promise<
+  Project[]
+> {
   const currentUser = await requireCurrentUser();
   const playgrounds = await prisma.playground.findMany({
     where: {
@@ -797,7 +815,9 @@ export async function getAllWorkspaceProjectsForCurrentUser(): Promise<Project[]
     },
   });
 
-  return playgrounds.map((playground) => toDashboardProject(playground, currentUser.id));
+  return playgrounds.map((playground) =>
+    toDashboardProject(playground, currentUser.id),
+  );
 }
 
 export async function getWorkspaceProjectByLink(workspaceLink: string) {
@@ -854,13 +874,18 @@ export async function createWorkspaceRecord(data: {
   });
 
   if (existingWorkspace) {
-    throw new WorkspaceServiceError("That workspace id is already in use.", 409);
+    throw new WorkspaceServiceError(
+      "That workspace id is already in use.",
+      409,
+    );
   }
 
   let templateData = createStarterTemplate(normalizeWorkspaceName(data.name));
 
   if (data.setupType === "GITHUB" && data.repositoryFullName) {
-    const importedRepository = await importGitHubRepository(data.repositoryFullName);
+    const importedRepository = await importGitHubRepository(
+      data.repositoryFullName,
+    );
     templateData = importedRepository.templateData;
   }
 
@@ -935,7 +960,9 @@ export async function createWorkspaceRecord(data: {
   return toDashboardProject(createdWorkspace, currentUser.id);
 }
 
-export async function getWorkspaceSnapshot(workspaceLink: string): Promise<WorkspaceSnapshot> {
+export async function getWorkspaceSnapshot(
+  workspaceLink: string,
+): Promise<WorkspaceSnapshot> {
   const currentUser = await requireCurrentUser();
   const fullWorkspace = await fetchWorkspaceWithRelations(workspaceLink);
 
@@ -971,7 +998,9 @@ export async function getWorkspaceSnapshot(workspaceLink: string): Promise<Works
     templateData,
     fileStates: fullWorkspace.entries.map(serializeFileState),
     members: fullWorkspace.members.map(serializeMember),
-    chatMessages: [...fullWorkspace.chatMessages].reverse().map(serializeChatMessage),
+    chatMessages: [...fullWorkspace.chatMessages]
+      .reverse()
+      .map(serializeChatMessage),
     activities: fullWorkspace.activities.map(serializeActivity),
     invites: canSeeInvites ? fullWorkspace.invites.map(serializeInvite) : [],
     currentUser: buildCurrentUserCapabilities({
@@ -1019,7 +1048,10 @@ export async function getRealtimeWorkspaceMember(
   });
 
   if (!member) {
-    throw new WorkspaceServiceError("You do not have access to that workspace.", 403);
+    throw new WorkspaceServiceError(
+      "You do not have access to that workspace.",
+      403,
+    );
   }
 
   return {
@@ -1034,7 +1066,11 @@ export async function recordWorkspacePresenceActivity(params: {
   userId: string;
   type: Extract<
     WorkspaceActivityTypeValue,
-    "MEMBER_JOINED" | "MEMBER_LEFT" | "FILE_OPENED" | "VOICE_JOINED" | "VOICE_LEFT"
+    | "MEMBER_JOINED"
+    | "MEMBER_LEFT"
+    | "FILE_OPENED"
+    | "VOICE_JOINED"
+    | "VOICE_LEFT"
   >;
   message: string;
   filePath?: string | null;
@@ -1108,7 +1144,10 @@ export async function pushWorkspaceFile(params: {
       entry,
     })
   ) {
-    throw new WorkspaceServiceError("You do not have permission to push that file.", 403);
+    throw new WorkspaceServiceError(
+      "You do not have permission to push that file.",
+      403,
+    );
   }
 
   const updated = await prisma.playgroundEntry.update({
@@ -1185,7 +1224,10 @@ export async function createWorkspaceEntry(params: {
   const access = await getWorkspaceAccess(params.workspaceLink);
 
   if (!canCreateEntries(access.member.role, access.playground.rules)) {
-    throw new WorkspaceServiceError("You cannot create files in this workspace.", 403);
+    throw new WorkspaceServiceError(
+      "You cannot create files in this workspace.",
+      403,
+    );
   }
 
   if (params.parentPath) {
@@ -1197,12 +1239,17 @@ export async function createWorkspaceEntry(params: {
     });
 
     if (!parentEntry || parentEntry.type !== "FOLDER") {
-      throw new WorkspaceServiceError("The parent folder could not be found.", 404);
+      throw new WorkspaceServiceError(
+        "The parent folder could not be found.",
+        404,
+      );
     }
   }
 
   const normalizedName = normalizeFileOrFolderName(params.name);
-  const nextPath = [params.parentPath, normalizedName].filter(Boolean).join("/");
+  const nextPath = [params.parentPath, normalizedName]
+    .filter(Boolean)
+    .join("/");
 
   const existingEntry = await prisma.playgroundEntry.findFirst({
     where: {
@@ -1215,7 +1262,10 @@ export async function createWorkspaceEntry(params: {
   });
 
   if (existingEntry) {
-    throw new WorkspaceServiceError("An item with that name already exists.", 409);
+    throw new WorkspaceServiceError(
+      "An item with that name already exists.",
+      409,
+    );
   }
 
   let fileExtension: string | null = null;
@@ -1322,19 +1372,23 @@ export async function renameWorkspaceEntry(params: {
   });
 
   if (conflictingEntry) {
-    throw new WorkspaceServiceError("An item with that name already exists.", 409);
+    throw new WorkspaceServiceError(
+      "An item with that name already exists.",
+      409,
+    );
   }
 
-  const descendants = entry.type === "FOLDER"
-    ? await prisma.playgroundEntry.findMany({
-        where: {
-          playgroundId: access.playground.id,
-          path: {
-            startsWith: `${entry.path}/`,
+  const descendants =
+    entry.type === "FOLDER"
+      ? await prisma.playgroundEntry.findMany({
+          where: {
+            playgroundId: access.playground.id,
+            path: {
+              startsWith: `${entry.path}/`,
+            },
           },
-        },
-      })
-    : [];
+        })
+      : [];
 
   await prisma.playgroundEntry.update({
     where: {
@@ -1505,7 +1559,10 @@ export async function assignWorkspaceFile(params: {
   const access = await getWorkspaceAccess(params.workspaceLink);
 
   if (!canAssignFiles(access.member.role, access.playground.rules)) {
-    throw new WorkspaceServiceError("File assignment is only available to managers in strict mode.", 403);
+    throw new WorkspaceServiceError(
+      "File assignment is only available to managers in strict mode.",
+      403,
+    );
   }
 
   const entry = await prisma.playgroundEntry.findFirst({
@@ -1531,7 +1588,10 @@ export async function assignWorkspaceFile(params: {
     });
 
     if (!targetMember) {
-      throw new WorkspaceServiceError("That collaborator is not part of this workspace.", 404);
+      throw new WorkspaceServiceError(
+        "That collaborator is not part of this workspace.",
+        404,
+      );
     }
   }
 
@@ -1564,7 +1624,9 @@ export async function assignWorkspaceFile(params: {
     },
   });
 
-  const assignedName = updated.assignedUser ? inferActorName(updated.assignedUser) : "nobody";
+  const assignedName = updated.assignedUser
+    ? inferActorName(updated.assignedUser)
+    : "nobody";
   const activity = await createActivityRecord({
     playgroundId: access.playground.id,
     actorId: access.user.id,
@@ -1653,7 +1715,10 @@ export async function createWorkspaceInviteLink(params: {
   const access = await getWorkspaceAccess(params.workspaceLink);
 
   if (!isManagerRole(access.member.role)) {
-    throw new WorkspaceServiceError("You cannot create invites for this workspace.", 403);
+    throw new WorkspaceServiceError(
+      "You cannot create invites for this workspace.",
+      403,
+    );
   }
 
   const token = createInviteToken();
@@ -1694,7 +1759,10 @@ export async function sendWorkspaceEmailInviteBatch(params: {
   const access = await getWorkspaceAccess(params.workspaceLink);
 
   if (!isManagerRole(access.member.role)) {
-    throw new WorkspaceServiceError("You cannot send invites for this workspace.", 403);
+    throw new WorkspaceServiceError(
+      "You cannot send invites for this workspace.",
+      403,
+    );
   }
 
   const invites = await createInviteRecords({
@@ -1750,7 +1818,10 @@ export async function acceptWorkspaceInviteToken(token: string) {
   }
 
   if (invite.status !== "PENDING") {
-    throw new WorkspaceServiceError("That invite link is no longer active.", 410);
+    throw new WorkspaceServiceError(
+      "That invite link is no longer active.",
+      410,
+    );
   }
 
   if (invite.expiresAt.getTime() < Date.now()) {
@@ -1767,7 +1838,10 @@ export async function acceptWorkspaceInviteToken(token: string) {
   }
 
   if (invite.email && invite.email !== currentUser.email?.toLowerCase()) {
-    throw new WorkspaceServiceError("This invite is tied to a different email address.", 403);
+    throw new WorkspaceServiceError(
+      "This invite is tied to a different email address.",
+      403,
+    );
   }
 
   const existingMember = await prisma.playgroundMember.findFirst({
@@ -1824,7 +1898,10 @@ export async function updateWorkspaceMemberRole(params: {
   const access = await getWorkspaceAccess(params.workspaceLink);
 
   if (!canManageRoles(access.member.role)) {
-    throw new WorkspaceServiceError("Only the workspace owner can change roles.", 403);
+    throw new WorkspaceServiceError(
+      "Only the workspace owner can change roles.",
+      403,
+    );
   }
 
   const targetMember = await prisma.playgroundMember.findFirst({
@@ -1845,11 +1922,17 @@ export async function updateWorkspaceMemberRole(params: {
   });
 
   if (!targetMember) {
-    throw new WorkspaceServiceError("That collaborator could not be found.", 404);
+    throw new WorkspaceServiceError(
+      "That collaborator could not be found.",
+      404,
+    );
   }
 
   if (targetMember.role === "OWNER") {
-    throw new WorkspaceServiceError("The workspace owner role cannot be changed.", 400);
+    throw new WorkspaceServiceError(
+      "The workspace owner role cannot be changed.",
+      400,
+    );
   }
 
   const updated = await prisma.playgroundMember.update({
@@ -1909,14 +1992,22 @@ export async function removeWorkspaceMember(params: {
   });
 
   if (!targetMember) {
-    throw new WorkspaceServiceError("That collaborator could not be found.", 404);
+    throw new WorkspaceServiceError(
+      "That collaborator could not be found.",
+      404,
+    );
   }
 
-  if (!canManageTargetMember({
-    actorRole: access.member.role,
-    targetRole: targetMember.role,
-  })) {
-    throw new WorkspaceServiceError("You cannot remove that collaborator.", 403);
+  if (
+    !canManageTargetMember({
+      actorRole: access.member.role,
+      targetRole: targetMember.role,
+    })
+  ) {
+    throw new WorkspaceServiceError(
+      "You cannot remove that collaborator.",
+      403,
+    );
   }
 
   await prisma.playgroundEntry.updateMany({
@@ -1958,7 +2049,10 @@ export async function setWorkspaceMemberVoiceMute(params: {
   const access = await getWorkspaceAccess(params.workspaceLink);
 
   if (!canModerateVoice(access.member.role)) {
-    throw new WorkspaceServiceError("You cannot moderate voice for this workspace.", 403);
+    throw new WorkspaceServiceError(
+      "You cannot moderate voice for this workspace.",
+      403,
+    );
   }
 
   const targetMember = await prisma.playgroundMember.findFirst({
@@ -1979,14 +2073,22 @@ export async function setWorkspaceMemberVoiceMute(params: {
   });
 
   if (!targetMember) {
-    throw new WorkspaceServiceError("That collaborator could not be found.", 404);
+    throw new WorkspaceServiceError(
+      "That collaborator could not be found.",
+      404,
+    );
   }
 
-  if (!canManageTargetMember({
-    actorRole: access.member.role,
-    targetRole: targetMember.role,
-  })) {
-    throw new WorkspaceServiceError("You cannot change voice moderation for that collaborator.", 403);
+  if (
+    !canManageTargetMember({
+      actorRole: access.member.role,
+      targetRole: targetMember.role,
+    })
+  ) {
+    throw new WorkspaceServiceError(
+      "You cannot change voice moderation for that collaborator.",
+      403,
+    );
   }
 
   const updated = await prisma.playgroundMember.update({
@@ -2018,7 +2120,10 @@ export async function importWorkspaceRepository(params: {
   const access = await getWorkspaceAccess(params.workspaceLink);
 
   if (!canImportRepository(access.member.role)) {
-    throw new WorkspaceServiceError("You cannot sync a repository into this workspace.", 403);
+    throw new WorkspaceServiceError(
+      "You cannot sync a repository into this workspace.",
+      403,
+    );
   }
 
   const imported = await importGitHubRepository(params.repositoryFullName);
@@ -2092,7 +2197,9 @@ export async function toggleWorkspaceStar(params: {
   await ensureWorkspaceMember(playground, currentUser);
   const nextStarredByIds = params.isStarred
     ? [...new Set([...(playground.starredByIds ?? []), currentUser.id])]
-    : (playground.starredByIds ?? []).filter((value) => value !== currentUser.id);
+    : (playground.starredByIds ?? []).filter(
+        (value) => value !== currentUser.id,
+      );
 
   await prisma.playground.update({
     where: {
@@ -2148,7 +2255,10 @@ export async function deleteWorkspace(workspaceLink: string) {
   const access = await getWorkspaceAccess(workspaceLink);
 
   if (access.member.role !== "OWNER") {
-    throw new WorkspaceServiceError("Only the workspace owner can delete this workspace.", 403);
+    throw new WorkspaceServiceError(
+      "Only the workspace owner can delete this workspace.",
+      403,
+    );
   }
 
   await Promise.all([
@@ -2194,7 +2304,9 @@ export function createPresenceSummary(params: {
   members: WorkspaceMember[];
   connections: Array<WorkspacePresence>;
 }) {
-  const memberByUserId = new Map(params.members.map((member) => [member.userId, member]));
+  const memberByUserId = new Map(
+    params.members.map((member) => [member.userId, member]),
+  );
   const latestConnectionByUserId = new Map<string, WorkspacePresence>();
 
   for (const connection of params.connections) {
@@ -2221,7 +2333,9 @@ export function createVoiceSummary(params: {
   members: WorkspaceMember[];
   participants: Array<WorkspaceVoiceParticipant>;
 }) {
-  const memberByUserId = new Map(params.members.map((member) => [member.userId, member]));
+  const memberByUserId = new Map(
+    params.members.map((member) => [member.userId, member]),
+  );
 
   return params.participants
     .map((participant) => {
