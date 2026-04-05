@@ -11,6 +11,10 @@ let activeSocket: WorkspaceSocket | null = null;
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "";
 
+if (!SOCKET_URL) {
+  console.error("Missing NEXT_PUBLIC_SOCKET_URL environment variable");
+}
+
 type RealtimeConnectionConfig =
   | {
       mode: "local";
@@ -37,32 +41,24 @@ async function getRealtimeConnectionConfig() {
 }
 
 async function createSocket() {
-  const config = await getRealtimeConnectionConfig();
-
-  if (config.mode === "external") {
-    const externalUrl = config.url || SOCKET_URL;
-    const socket = io(externalUrl, {
-      path: config.path,
-      autoConnect: true,
-      withCredentials: false,
-      auth: {
-        token: config.token,
-      },
-    });
-
-    return socket;
+  if (!SOCKET_URL) {
+    throw new Error("NEXT_PUBLIC_SOCKET_URL environment variable is missing.");
   }
 
-  await fetch(`${API_URL}/api/socket`, {
-    method: "GET",
-    cache: "no-store",
-  });
+  const config = await getRealtimeConnectionConfig().catch(() => null);
 
-  const socket = io(SOCKET_URL || undefined, {
-    path: config.path,
+  const socket = io(SOCKET_URL, {
+    path: config?.path || "/api/socket_io",
+    transports: ["websocket"],
     autoConnect: true,
     withCredentials: true,
+    auth: {
+      token: config && config.mode === "external" ? config.token : undefined,
+    },
   });
+
+  socket.on("connect", () => console.log("Connected:", socket.id));
+  socket.on("connect_error", (err) => console.error("Socket error:", err));
 
   return socket;
 }
