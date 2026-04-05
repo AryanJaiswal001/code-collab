@@ -52,9 +52,7 @@ export function useGitHubRepositories(
 
       const queryString = searchParams.toString();
       const response = await fetch(
-        queryString
-          ? `/api/github/repos?${queryString}`
-          : "/api/github/repos",
+        queryString ? `/api/github/repos?${queryString}` : "/api/github/repos",
         { cache: "no-store" },
       );
       const payload = (await response.json().catch(() => null)) as
