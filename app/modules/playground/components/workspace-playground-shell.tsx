@@ -142,10 +142,8 @@ function getRouteErrorMessage(payload: unknown, fallbackMessage: string) {
   return fallbackMessage;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-
 async function fetchWorkspaceSnapshot(workspaceId: string) {
-  const response = await fetch(`${API_URL}/api/workspaces/${workspaceId}`, {
+  const response = await fetch(`/api/workspaces/${workspaceId}`, {
     cache: "no-store",
   });
   const payload = (await response.json().catch(() => null)) as
@@ -167,16 +165,13 @@ async function postWorkspaceJson<T>(
   segment: string,
   body: unknown,
 ) {
-  const response = await fetch(
-    `${API_URL}/api/workspaces/${workspaceId}/${segment}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
+  const response = await fetch(`/api/workspaces/${workspaceId}/${segment}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify(body),
+  });
   const payload = (await response.json().catch(() => null)) as
     | T
     | { error?: string }

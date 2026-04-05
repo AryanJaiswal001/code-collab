@@ -222,20 +222,27 @@ function buildInviteUrlPath(token: string) {
 }
 
 function getAppOrigin() {
+  const vercelOrigin = process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : null;
+
   const configuredOrigin =
     process.env.AUTH_URL?.trim() ||
-    process.env.NEXT_PUBLIC_API_URL?.trim() ||
-    process.env.NEXTAUTH_URL?.trim();
+    process.env.NEXTAUTH_URL?.trim() ||
+    process.env.APP_ORIGIN?.trim() ||
+    vercelOrigin;
 
   if (configuredOrigin) {
     try {
       return new URL(configuredOrigin).origin;
     } catch {
-      return process.env.NEXT_PUBLIC_API_URL || process.env.NEXTAUTH_URL || "";
+      return process.env.NEXTAUTH_URL || process.env.APP_ORIGIN || "";
     }
   }
 
-  return process.env.NEXT_PUBLIC_API_URL || process.env.NEXTAUTH_URL || "";
+  return process.env.NEXTAUTH_URL || process.env.APP_ORIGIN || "";
 }
 
 function formatInviteUrl(token: string) {

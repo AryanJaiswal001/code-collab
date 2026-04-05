@@ -2,15 +2,77 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
 import { Server as SocketIOServer } from "socket.io";
 
+function normalizeOrigin(value) {
+  const normalized = value?.trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  try {
+    return new URL(normalized).origin;
+  } catch {
+    return null;
+  }
+}
+
+function parseOriginList(value) {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((entry) => normalizeOrigin(entry))
+    .filter(Boolean);
+}
+
 const port = Number.parseInt(process.env.PORT ?? "10000", 10);
-const appOrigin =
-  process.env.FRONTEND_URL?.trim() || process.env.APP_ORIGIN?.trim();
+const configuredOrigins = [
+  ...parseOriginList(process.env.FRONTEND_URL),
+  ...parseOriginList(process.env.APP_ORIGIN),
+];
+const allowedOrigins = [...new Set(configuredOrigins)];
+const appOrigin = allowedOrigins[0] ?? null;
+const allowAllOrigins = process.env.REALTIME_ALLOW_ALL_ORIGINS === "1";
+const allowVercelPreviewOrigins =
+  process.env.REALTIME_ALLOW_VERCEL_PREVIEW_ORIGINS !== "0";
 const realtimeSecret = process.env.REALTIME_SHARED_SECRET?.trim();
 const socketPath = process.env.REALTIME_SOCKET_PATH?.trim() || "/api/socket_io";
 const internalSecretHeader = "x-realtime-secret";
+const vercelPreviewOriginPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+
+function isAllowedSocketOrigin(origin) {
+  if (!origin) {
+    return true;
+  }
+
+  const normalizedOrigin = normalizeOrigin(origin);
+
+  if (!normalizedOrigin) {
+    return false;
+  }
+
+  if (allowAllOrigins) {
+    return true;
+  }
+
+  if (allowedOrigins.includes(normalizedOrigin)) {
+    return true;
+  }
+
+  if (
+    allowVercelPreviewOrigins &&
+    vercelPreviewOriginPattern.test(normalizedOrigin)
+  ) {
+    return true;
+  }
+
+  return false;
+}
 
 if (!appOrigin) {
-  throw new Error("APP_ORIGIN is required.");
+  throw new Error("FRONTEND_URL or APP_ORIGIN is required.");
 }
 
 if (!realtimeSecret) {
@@ -501,7 +563,14 @@ const io = new SocketIOServer(httpServer, {
   path: socketPath,
   addTrailingSlash: false,
   cors: {
-    origin: appOrigin,
+    origin: (origin, callback) => {
+      if (isAllowedSocketOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`Socket origin not allowed: ${origin ?? "unknown"}`));
+    },
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -709,7 +778,13 @@ io.on("connection", (socket) => {
 });
 
 httpServer.listen(port, () => {
+  const allowedOriginsLabel = allowAllOrigins
+    ? "*"
+    : allowedOrigins.length
+      ? allowedOrigins.join(", ")
+      : "(none)";
+
   console.log(
-    `Realtime server listening on port ${port} for ${appOrigin} using path ${socketPath}`,
+    `Realtime server listening on port ${port} for ${appOrigin} using path ${socketPath}. Allowed socket origins: ${allowedOriginsLabel}.`,
   );
 });

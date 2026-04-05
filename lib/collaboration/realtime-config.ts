@@ -19,7 +19,9 @@ function normalizeUrl(value?: string | null) {
 
 export function getRealtimeServerUrl() {
   return normalizeUrl(
-    process.env.REALTIME_SERVER_URL ?? process.env.NEXT_PUBLIC_REALTIME_URL,
+    process.env.REALTIME_SERVER_URL ??
+      process.env.NEXT_PUBLIC_SOCKET_URL ??
+      process.env.NEXT_PUBLIC_REALTIME_URL,
   );
 }
 

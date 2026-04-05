@@ -7,12 +7,13 @@ type WorkspaceSocket = Socket;
 let socketPromise: Promise<WorkspaceSocket> | null = null;
 let activeSocket: WorkspaceSocket | null = null;
 
-// Helper to reliably use environment variables
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "";
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL?.trim() || "";
+const SOCKET_CONFIG_MAX_ATTEMPTS = 5;
+const SOCKET_CONFIG_INITIAL_BACKOFF_MS = 750;
+const SOCKET_COLD_START_DELAY_MS = 500;
 
 if (!SOCKET_URL) {
-  console.error("Missing NEXT_PUBLIC_SOCKET_URL environment variable");
+  console.warn("NEXT_PUBLIC_SOCKET_URL is not set. Falling back to runtime config URL.");
 }
 
 type RealtimeConnectionConfig =
@@ -28,37 +29,123 @@ type RealtimeConnectionConfig =
     };
 
 async function getRealtimeConnectionConfig() {
-  const response = await fetch(`${API_URL}/api/realtime/token`, {
+  const response = await fetch("/api/realtime/token", {
     method: "GET",
     cache: "no-store",
   });
 
   if (!response.ok) {
-    throw new Error("Unable to prepare the realtime connection.");
+    const payload = (await response.json().catch(() => null)) as
+      | { error?: string }
+      | null;
+    throw new Error(
+      payload?.error || "Unable to prepare the realtime connection.",
+    );
   }
 
   return (await response.json()) as RealtimeConnectionConfig;
 }
 
-async function createSocket() {
-  if (!SOCKET_URL) {
-    throw new Error("NEXT_PUBLIC_SOCKET_URL environment variable is missing.");
+function delay(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+async function getRealtimeConnectionConfigWithRetry() {
+  let backoffMs = SOCKET_CONFIG_INITIAL_BACKOFF_MS;
+
+  for (let attempt = 1; attempt <= SOCKET_CONFIG_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await getRealtimeConnectionConfig();
+    } catch (error) {
+      if (attempt === SOCKET_CONFIG_MAX_ATTEMPTS) {
+        throw error;
+      }
+
+      console.warn(
+        `[realtime] Failed to load connection config (attempt ${attempt}/${SOCKET_CONFIG_MAX_ATTEMPTS}). Retrying in ${backoffMs}ms.`,
+        error,
+      );
+      await delay(backoffMs);
+      backoffMs = Math.min(backoffMs * 2, 5_000);
+    }
   }
 
-  const config = await getRealtimeConnectionConfig().catch(() => null);
+  throw new Error("Unable to prepare the realtime connection.");
+}
 
-  const socket = io(SOCKET_URL, {
-    path: config?.path || "/api/socket_io",
+function resolveSocketEndpoint(config: RealtimeConnectionConfig) {
+  if (SOCKET_URL) {
+    return SOCKET_URL;
+  }
+
+  if (config.mode === "external") {
+    return config.url;
+  }
+
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+
+  return "";
+}
+
+async function createSocket() {
+  const config = await getRealtimeConnectionConfigWithRetry();
+  const socketEndpoint = resolveSocketEndpoint(config);
+
+  if (!socketEndpoint) {
+    throw new Error("Unable to determine realtime socket URL.");
+  }
+
+  const socket = io(socketEndpoint, {
+    path: config.path || "/api/socket_io",
     transports: ["websocket"],
-    autoConnect: true,
+    secure: true,
+    autoConnect: false,
     withCredentials: true,
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1_000,
+    reconnectionDelayMax: 10_000,
+    randomizationFactor: 0.5,
+    timeout: 20_000,
     auth: {
-      token: config && config.mode === "external" ? config.token : undefined,
+      token: config.mode === "external" ? config.token : undefined,
     },
   });
 
-  socket.on("connect", () => console.log("Connected:", socket.id));
-  socket.on("connect_error", (err) => console.error("Socket error:", err));
+  socket.on("connect", () => {
+    console.info(`[realtime] Connected with socket id ${socket.id}.`);
+  });
+
+  socket.on("disconnect", (reason) => {
+    console.warn(`[realtime] Disconnected (${reason}).`);
+  });
+
+  socket.on("connect_error", (error) => {
+    console.error("[realtime] Connection error.", error);
+  });
+
+  socket.io.on("reconnect_attempt", (attempt) => {
+    console.info(`[realtime] Reconnect attempt ${attempt}.`);
+  });
+
+  socket.io.on("reconnect", (attempt) => {
+    console.info(`[realtime] Reconnected after ${attempt} attempt(s).`);
+  });
+
+  socket.io.on("reconnect_error", (error) => {
+    console.error("[realtime] Reconnect error.", error);
+  });
+
+  socket.io.on("reconnect_failed", () => {
+    console.error("[realtime] Reconnect failed after maximum attempts.");
+  });
+
+  await delay(SOCKET_COLD_START_DELAY_MS);
+  socket.connect();
 
   return socket;
 }
