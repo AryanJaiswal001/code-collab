@@ -3,6 +3,8 @@ import { acceptWorkspaceInviteToken } from "@/app/modules/workspaces/server";
 import { emitWorkspaceMembersChanged } from "@/lib/collaboration/realtime";
 import { Button } from "@/components/ui/button";
 
+export const dynamic = "force-dynamic";
+
 type WorkspaceInvitePageProps = {
   params: Promise<{ token: string }>;
 };
@@ -10,10 +12,12 @@ type WorkspaceInvitePageProps = {
 export default async function WorkspaceInvitePage({
   params,
 }: WorkspaceInvitePageProps) {
+  const { token } = await params;
+  console.log("WorkspaceInvitePage rendered with token:", token);
+
   async function acceptInvite() {
     "use server";
 
-    const { token } = await params;
     const invite = await acceptWorkspaceInviteToken(token);
     emitWorkspaceMembersChanged(invite.workspaceLink, "invite-accepted");
     redirect(`/workspace/${invite.workspaceLink}`);

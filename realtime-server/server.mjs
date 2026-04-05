@@ -3,7 +3,8 @@ import { createServer } from "node:http";
 import { Server as SocketIOServer } from "socket.io";
 
 const port = Number.parseInt(process.env.PORT ?? "10000", 10);
-const appOrigin = process.env.APP_ORIGIN?.trim();
+const appOrigin =
+  process.env.FRONTEND_URL?.trim() || process.env.APP_ORIGIN?.trim();
 const realtimeSecret = process.env.REALTIME_SHARED_SECRET?.trim();
 const socketPath = process.env.REALTIME_SOCKET_PATH?.trim() || "/api/socket_io";
 const internalSecretHeader = "x-realtime-secret";
@@ -36,7 +37,10 @@ function safeEqual(left, right) {
   const leftBuffer = Buffer.from(left);
   const rightBuffer = Buffer.from(right);
 
-  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+  return (
+    leftBuffer.length === rightBuffer.length &&
+    timingSafeEqual(leftBuffer, rightBuffer)
+  );
 }
 
 function verifyRealtimeToken(token) {
@@ -51,7 +55,9 @@ function verifyRealtimeToken(token) {
   }
 
   const expectedSignature = encodeBase64Url(
-    createHmac("sha256", realtimeSecret).update(`${header}.${payload}`).digest(),
+    createHmac("sha256", realtimeSecret)
+      .update(`${header}.${payload}`)
+      .digest(),
   );
 
   if (!safeEqual(signature, expectedSignature)) {
@@ -77,9 +83,14 @@ function verifyRealtimeToken(token) {
   return {
     userId: decodedPayload.sub,
     name: decodedPayload.name,
-    email: typeof decodedPayload.email === "string" ? decodedPayload.email : null,
-    image: typeof decodedPayload.image === "string" ? decodedPayload.image : null,
-    username: typeof decodedPayload.username === "string" ? decodedPayload.username : null,
+    email:
+      typeof decodedPayload.email === "string" ? decodedPayload.email : null,
+    image:
+      typeof decodedPayload.image === "string" ? decodedPayload.image : null,
+    username:
+      typeof decodedPayload.username === "string"
+        ? decodedPayload.username
+        : null,
   };
 }
 
@@ -277,7 +288,10 @@ async function handleLeave(io, socket) {
 async function handleJoin(io, socket, payload) {
   const socketData = socket.data;
 
-  if (socketData.workspaceId && socketData.workspaceId !== payload.workspaceId) {
+  if (
+    socketData.workspaceId &&
+    socketData.workspaceId !== payload.workspaceId
+  ) {
     await handleLeave(io, socket);
   }
 
@@ -352,7 +366,11 @@ async function handleActiveFile(io, socket, payload) {
 }
 
 function handleInternalEvent(io, payload) {
-  if (!payload || typeof payload !== "object" || typeof payload.type !== "string") {
+  if (
+    !payload ||
+    typeof payload !== "object" ||
+    typeof payload.type !== "string"
+  ) {
     return {
       ok: false,
       statusCode: 400,
@@ -362,22 +380,37 @@ function handleInternalEvent(io, payload) {
 
   switch (payload.type) {
     case "workspace:file-pushed":
-      io.to(getRoomName(payload.event.workspaceId)).emit("workspace:file-pushed", payload.event);
+      io.to(getRoomName(payload.event.workspaceId)).emit(
+        "workspace:file-pushed",
+        payload.event,
+      );
       return { ok: true, statusCode: 200, message: "published" };
     case "workspace:tree-updated":
-      io.to(getRoomName(payload.event.workspaceId)).emit("workspace:tree-updated", payload.event);
+      io.to(getRoomName(payload.event.workspaceId)).emit(
+        "workspace:tree-updated",
+        payload.event,
+      );
       return { ok: true, statusCode: 200, message: "published" };
     case "workspace:chat:new":
-      io.to(getRoomName(payload.workspaceId)).emit("workspace:chat:new", payload.message);
+      io.to(getRoomName(payload.workspaceId)).emit(
+        "workspace:chat:new",
+        payload.message,
+      );
       return { ok: true, statusCode: 200, message: "published" };
     case "workspace:activity:new":
-      io.to(getRoomName(payload.workspaceId)).emit("workspace:activity:new", payload.activity);
+      io.to(getRoomName(payload.workspaceId)).emit(
+        "workspace:activity:new",
+        payload.activity,
+      );
       return { ok: true, statusCode: 200, message: "published" };
     case "workspace:members-changed":
-      io.to(getRoomName(payload.workspaceId)).emit("workspace:members-changed", {
-        workspaceId: payload.workspaceId,
-        reason: payload.reason,
-      });
+      io.to(getRoomName(payload.workspaceId)).emit(
+        "workspace:members-changed",
+        {
+          workspaceId: payload.workspaceId,
+          reason: payload.reason,
+        },
+      );
       return { ok: true, statusCode: 200, message: "published" };
     case "voice:moderated-leave": {
       const roomState = roomStates.get(payload.workspaceId);
@@ -419,7 +452,10 @@ const httpServer = createServer(async (request, response) => {
     return;
   }
 
-  const requestUrl = new URL(request.url, `http://${request.headers.host ?? "localhost"}`);
+  const requestUrl = new URL(
+    request.url,
+    `http://${request.headers.host ?? "localhost"}`,
+  );
 
   if (request.method === "GET" && requestUrl.pathname === "/health") {
     sendJson(response, 200, { ok: true });
@@ -437,14 +473,19 @@ const httpServer = createServer(async (request, response) => {
 
   if (request.method === "POST" && requestUrl.pathname === "/internal/events") {
     if (!hasInternalAccess(request)) {
-      sendJson(response, 401, { error: "Unauthorized realtime event request." });
+      sendJson(response, 401, {
+        error: "Unauthorized realtime event request.",
+      });
       return;
     }
 
     try {
       const payload = await readJson(request);
       const result = handleInternalEvent(io, payload);
-      sendJson(response, result.statusCode, { ok: result.ok, message: result.message });
+      sendJson(response, result.statusCode, {
+        ok: result.ok,
+        message: result.message,
+      });
     } catch (error) {
       console.error("Unable to handle internal realtime event.", error);
       sendJson(response, 500, { error: "Unable to handle realtime event." });
@@ -462,6 +503,7 @@ const io = new SocketIOServer(httpServer, {
   cors: {
     origin: appOrigin,
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 
@@ -479,7 +521,10 @@ io.on("connection", (socket) => {
   socket.on("workspace:join", (payload) => {
     void handleJoin(io, socket, payload).catch((error) => {
       socket.emit("voice:error", {
-        message: error instanceof Error ? error.message : "Unable to join the workspace room.",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unable to join the workspace room.",
       });
     });
   });
@@ -510,7 +555,10 @@ io.on("connection", (socket) => {
         user: socketData.user,
       });
 
-      io.to(getRoomName(payload.workspaceId)).emit("workspace:chat:new", message);
+      io.to(getRoomName(payload.workspaceId)).emit(
+        "workspace:chat:new",
+        message,
+      );
       callback({
         ok: true,
         message,
@@ -518,7 +566,10 @@ io.on("connection", (socket) => {
     })().catch((error) => {
       callback({
         ok: false,
-        error: error instanceof Error ? error.message : "Unable to send that message.",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to send that message.",
       });
     });
   });
@@ -557,11 +608,15 @@ io.on("connection", (socket) => {
         isMutedByModerator: false,
       };
 
-      const existingParticipants = Array.from(roomState.voiceParticipants.values());
+      const existingParticipants = Array.from(
+        roomState.voiceParticipants.values(),
+      );
       roomState.voiceParticipants.set(socket.id, participant);
 
       socket.emit("voice:participants", existingParticipants);
-      socket.to(getRoomName(payload.workspaceId)).emit("voice:participant-joined", participant);
+      socket
+        .to(getRoomName(payload.workspaceId))
+        .emit("voice:participant-joined", participant);
       emitVoiceSnapshot(io, payload.workspaceId);
       await emitPresenceActivity(io, {
         workspaceId: payload.workspaceId,
@@ -573,7 +628,8 @@ io.on("connection", (socket) => {
       });
     })().catch((error) => {
       socket.emit("voice:error", {
-        message: error instanceof Error ? error.message : "Unable to join voice.",
+        message:
+          error instanceof Error ? error.message : "Unable to join voice.",
       });
     });
   });
@@ -588,10 +644,12 @@ io.on("connection", (socket) => {
       }
 
       roomState.voiceParticipants.delete(socket.id);
-      socket.to(getRoomName(payload.workspaceId)).emit("voice:participant-left", {
-        socketId: socket.id,
-        userId: participant.userId,
-      });
+      socket
+        .to(getRoomName(payload.workspaceId))
+        .emit("voice:participant-left", {
+          socketId: socket.id,
+          userId: participant.userId,
+        });
       emitVoiceSnapshot(io, payload.workspaceId);
       await emitPresenceActivity(io, {
         workspaceId: payload.workspaceId,
@@ -609,7 +667,9 @@ io.on("connection", (socket) => {
   socket.on("voice:signal", (payload) => {
     const roomState = roomStates.get(payload.workspaceId);
     const sourceParticipant = roomState?.voiceParticipants.get(socket.id);
-    const targetParticipant = roomState?.voiceParticipants.get(payload.targetSocketId);
+    const targetParticipant = roomState?.voiceParticipants.get(
+      payload.targetSocketId,
+    );
 
     if (!sourceParticipant || !targetParticipant) {
       return;

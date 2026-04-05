@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 
+export const dynamic = "force-dynamic";
+
 type WorkspacePageProps = {
   params: Promise<{ id: string }>;
 };

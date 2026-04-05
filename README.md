@@ -1,3 +1,6 @@
+# Deployed link (For easy running of the project without local setup):
+https://code-collab-dusky-xi.vercel.app/
+
 # Code Collab
 
 Code Collab is a collaborative coding workspace built with Next.js, Auth.js, Prisma, MongoDB, Monaco, WebContainers, and Socket.IO.
