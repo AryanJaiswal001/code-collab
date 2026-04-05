@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import withBundleAnalyzer from "@next/bundle-analyzer";
+
+const bundleAnalyzer = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
 
 const crossOriginIsolationHeaders = [
   {
@@ -12,13 +17,11 @@ const crossOriginIsolationHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   experimental: {
     optimizePackageImports: ["@base-ui/react", "@hugeicons/react", "radix-ui"],
   },
-  serverExternalPackages: [
-    "nodemailer",
-    "socket.io",
-  ],
+  serverExternalPackages: ["nodemailer", "socket.io"],
   async headers() {
     return [
       {
@@ -29,4 +32,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default bundleAnalyzer(nextConfig);
