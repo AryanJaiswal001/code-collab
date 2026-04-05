@@ -2,6 +2,13 @@ import type { NextAuthConfig } from "next-auth";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 
+if (process.env.VERCEL) {
+  process.env.AUTH_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL 
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` 
+    : `https://${process.env.VERCEL_URL}`;
+  process.env.NEXTAUTH_URL = process.env.AUTH_URL;
+}
+
 function getProfileString(profile: unknown, key: string) {
   if (!profile || typeof profile !== "object") {
     return null;

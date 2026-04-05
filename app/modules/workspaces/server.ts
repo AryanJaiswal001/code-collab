@@ -223,17 +223,17 @@ function buildInviteUrlPath(token: string) {
 
 function getAppOrigin() {
   const configuredOrigin =
-    process.env.AUTH_URL?.trim() || process.env.NEXT_PUBLIC_API_URL?.trim();
+    process.env.AUTH_URL?.trim() || process.env.NEXT_PUBLIC_API_URL?.trim() || process.env.NEXTAUTH_URL?.trim();
 
   if (configuredOrigin) {
     try {
       return new URL(configuredOrigin).origin;
     } catch {
-      return "http://localhost:3000";
+      return process.env.NEXT_PUBLIC_API_URL || process.env.NEXTAUTH_URL || "";
     }
   }
 
-  return "http://localhost:3000";
+  return process.env.NEXT_PUBLIC_API_URL || process.env.NEXTAUTH_URL || "";
 }
 
 function formatInviteUrl(token: string) {
