@@ -18,11 +18,20 @@ export default async function EditorPage({ params }: EditorPageProps) {
   if (!snapshot) {
     // Return a minimal working page instead of triggering Vercel's 404
     return (
-      <div style={{ padding: "40px", color: "white", minHeight: "100vh", backgroundColor: "#050816" }}>
+      <div
+        style={{
+          padding: "40px",
+          color: "white",
+          minHeight: "100vh",
+          backgroundColor: "#050816",
+        }}
+      >
         <h1>Editor Page: {projectId}</h1>
         <p>The dynamic route is working successfully!</p>
         <p style={{ marginTop: "20px", color: "#888" }}>
-          Notice: The collaborative workspace database record could not be loaded, which previously caused a hard 404 error via Next.js `notFound()`.
+          Notice: The collaborative workspace database record could not be
+          loaded, which previously caused a hard 404 error via Next.js
+          `notFound()`.
         </p>
       </div>
     );
