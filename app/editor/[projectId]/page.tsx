@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { getWorkspaceSnapshot } from "@/app/modules/workspaces/server";
 import { WorkspacePlaygroundShell } from "@/app/modules/playground/components/workspace-playground-shell";
 
+export const dynamic = "force-dynamic";
+
 type EditorPageProps = {
   params: Promise<{ projectId: string }>;
 };
