@@ -8,9 +8,7 @@ type EditorPageProps = {
   params: Promise<{ projectId: string }>;
 };
 
-export default async function EditorPage({
-  params,
-}: EditorPageProps) {
+export default async function EditorPage({ params }: EditorPageProps) {
   const { projectId } = await params;
   const snapshot = await getWorkspaceSnapshot(projectId).catch(() => null);
 
