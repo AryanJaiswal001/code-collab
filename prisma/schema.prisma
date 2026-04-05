@@ -5,7 +5,7 @@ generator client {
 
 datasource db {
   provider = "mongodb"
-  url      = env("MONGO_URI")
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -51,6 +51,12 @@ model Session {
   userId       String   @db.ObjectId
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Workspace {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  projectId  String   @unique
+  createdAt  DateTime @default(now())
 }
 
 enum WorkspaceMode {

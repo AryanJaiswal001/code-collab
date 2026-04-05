@@ -379,9 +379,20 @@ export default function CreateWorkspaceModal({
     setIsSubmitting(true);
 
     try {
-      const createdWorkspace = await createWorkspace(
-        buildWorkspacePayload(draft),
-      );
+      const payload = buildWorkspacePayload(draft);
+
+      // Track basic workspace ID matching exactly as requested
+      try {
+        await fetch("/api/workspace", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId: workspaceObject.id }),
+        });
+      } catch (e) {
+        console.error("Backup Workspace logging failed:", e);
+      }
+
+      const createdWorkspace = await createWorkspace(payload);
 
       if (createdWorkspace && onCreateProject) {
         await onCreateProject(createdWorkspace);
