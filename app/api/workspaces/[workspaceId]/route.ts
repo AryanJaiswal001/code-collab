@@ -16,10 +16,7 @@ type WorkspaceRouteBody = {
   action: "join";
 };
 
-export async function GET(
-  _request: Request,
-  ctx: WorkspaceRouteContext,
-) {
+export async function GET(_request: Request, ctx: WorkspaceRouteContext) {
   try {
     const { workspaceId } = await ctx.params;
     const snapshot = await getWorkspaceSnapshot(workspaceId);
@@ -29,15 +26,12 @@ export async function GET(
   }
 }
 
-export async function POST(
-  request: Request,
-  ctx: WorkspaceRouteContext,
-) {
+export async function POST(request: Request, ctx: WorkspaceRouteContext) {
   try {
     const { workspaceId } = await ctx.params;
-    const body = (await request.json().catch(() => null)) as
-      | WorkspaceRouteBody
-      | null;
+    const body = (await request
+      .json()
+      .catch(() => null)) as WorkspaceRouteBody | null;
 
     if (!body || body.action !== "join") {
       return Response.json(

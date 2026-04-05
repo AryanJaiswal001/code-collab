@@ -60,17 +60,27 @@ type ServerToClientEvents = {
   "workspace:chat:new": (message: WorkspaceChatMessage) => void;
   "workspace:activity:new": (activity: WorkspaceActivity) => void;
   "user-joined": (payload: WorkspaceUserJoinedEvent) => void;
-  "workspace:members-changed": (payload: { workspaceId: string; reason: string }) => void;
+  "workspace:members-changed": (payload: {
+    workspaceId: string;
+    reason: string;
+  }) => void;
   "voice:participants": (participants: WorkspaceVoiceParticipant[]) => void;
   "voice:participant-joined": (participant: WorkspaceVoiceParticipant) => void;
-  "voice:participant-left": (payload: { socketId: string; userId: string }) => void;
+  "voice:participant-left": (payload: {
+    socketId: string;
+    userId: string;
+  }) => void;
   "voice:signal": (payload: {
     workspaceId: string;
     sourceSocketId: string;
     sourceUser: WorkspaceActor & { role: WorkspaceMemberRoleValue };
     signal: unknown;
   }) => void;
-  "voice:speaking": (payload: { socketId: string; userId: string; isSpeaking: boolean }) => void;
+  "voice:speaking": (payload: {
+    socketId: string;
+    userId: string;
+    isSpeaking: boolean;
+  }) => void;
   "voice:error": (payload: { message: string }) => void;
   "voice:moderated-leave": (payload: { reason: string }) => void;
 };
@@ -87,15 +97,25 @@ type ClientToServerEvents = {
     user?: WorkspaceActor;
   }) => void;
   "workspace:leave": (payload: { workspaceId: string }) => void;
-  "workspace:active-file": (payload: { workspaceId: string; activeFilePath?: string | null }) => void;
+  "workspace:active-file": (payload: {
+    workspaceId: string;
+    activeFilePath?: string | null;
+  }) => void;
   "workspace:chat:send": (
     payload: { workspaceId: string; content: string },
     callback: (result: ChatSendAcknowledgement) => void,
   ) => void;
   "voice:join": (payload: { workspaceId: string }) => void;
   "voice:leave": (payload: { workspaceId: string }) => void;
-  "voice:signal": (payload: { workspaceId: string; targetSocketId: string; signal: unknown }) => void;
-  "voice:speaking": (payload: { workspaceId: string; isSpeaking: boolean }) => void;
+  "voice:signal": (payload: {
+    workspaceId: string;
+    targetSocketId: string;
+    signal: unknown;
+  }) => void;
+  "voice:speaking": (payload: {
+    workspaceId: string;
+    isSpeaking: boolean;
+  }) => void;
 };
 
 const globalForRealtime = globalThis as typeof globalThis & {
@@ -103,7 +123,9 @@ const globalForRealtime = globalThis as typeof globalThis & {
   __workspaceRoomStates?: Map<string, WorkspaceRoomState>;
 };
 
-const roomStates = globalForRealtime.__workspaceRoomStates ?? new Map<string, WorkspaceRoomState>();
+const roomStates =
+  globalForRealtime.__workspaceRoomStates ??
+  new Map<string, WorkspaceRoomState>();
 
 if (process.env.NODE_ENV !== "production") {
   globalForRealtime.__workspaceRoomStates = roomStates;
@@ -198,7 +220,9 @@ function getSocketServer() {
   return globalForRealtime.__workspaceSocketServer ?? null;
 }
 
-function getSocketData(socket: Socket<ClientToServerEvents, ServerToClientEvents>) {
+function getSocketData(
+  socket: Socket<ClientToServerEvents, ServerToClientEvents>,
+) {
   return socket.data as AuthenticatedSocketData;
 }
 
@@ -229,7 +253,7 @@ async function authenticateSocket(
       typeof token.username === "string"
         ? token.username
         : typeof token.email === "string"
-          ? token.email.split("@")[0] ?? null
+          ? (token.email.split("@")[0] ?? null)
           : null,
   };
 }
@@ -269,7 +293,12 @@ async function emitVoiceSnapshot(workspaceId: string) {
 async function emitPresenceActivity(params: {
   workspaceId: string;
   userId: string;
-  type: "MEMBER_JOINED" | "MEMBER_LEFT" | "FILE_OPENED" | "VOICE_JOINED" | "VOICE_LEFT";
+  type:
+    | "MEMBER_JOINED"
+    | "MEMBER_LEFT"
+    | "FILE_OPENED"
+    | "VOICE_JOINED"
+    | "VOICE_LEFT";
   message: string;
   filePath?: string | null;
   dedupeKey: string;
@@ -293,7 +322,9 @@ async function emitPresenceActivity(params: {
   return null;
 }
 
-async function handleLeave(socket: Socket<ClientToServerEvents, ServerToClientEvents>) {
+async function handleLeave(
+  socket: Socket<ClientToServerEvents, ServerToClientEvents>,
+) {
   const socketData = getSocketData(socket);
   const workspaceId = socketData.workspaceId;
 
@@ -358,7 +389,10 @@ async function handleJoin(
 ) {
   const socketData = getSocketData(socket);
 
-  if (socketData.workspaceId && socketData.workspaceId !== payload.workspaceId) {
+  if (
+    socketData.workspaceId &&
+    socketData.workspaceId !== payload.workspaceId
+  ) {
     await handleLeave(socket);
   }
 
@@ -443,10 +477,13 @@ async function handleActiveFile(
 }
 
 function createSocketServer(httpServer: RealtimeHttpServer) {
-  const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(httpServer, {
-    path: REALTIME_SOCKET_PATH,
-    addTrailingSlash: false,
-  });
+  const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(
+    httpServer,
+    {
+      path: REALTIME_SOCKET_PATH,
+      addTrailingSlash: false,
+    },
+  );
 
   io.use((socket, next) => {
     void authenticateSocket(socket)
@@ -462,7 +499,10 @@ function createSocketServer(httpServer: RealtimeHttpServer) {
     }) => {
       void handleJoin(socket, payload).catch((error) => {
         socket.emit("voice:error", {
-          message: error instanceof Error ? error.message : "Unable to join the workspace room.",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Unable to join the workspace room.",
         });
       });
     };
@@ -504,7 +544,10 @@ function createSocketServer(httpServer: RealtimeHttpServer) {
       })().catch((error) => {
         callback({
           ok: false,
-          error: error instanceof Error ? error.message : "Unable to send that message.",
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unable to send that message.",
         });
       });
     });
@@ -543,11 +586,15 @@ function createSocketServer(httpServer: RealtimeHttpServer) {
           isMutedByModerator: false,
         };
 
-        const existingParticipants = Array.from(roomState.voiceParticipants.values());
+        const existingParticipants = Array.from(
+          roomState.voiceParticipants.values(),
+        );
         roomState.voiceParticipants.set(socket.id, participant);
 
         socket.emit("voice:participants", existingParticipants);
-        socket.to(getRoomName(payload.workspaceId)).emit("voice:participant-joined", participant);
+        socket
+          .to(getRoomName(payload.workspaceId))
+          .emit("voice:participant-joined", participant);
         await emitVoiceSnapshot(payload.workspaceId);
         await emitPresenceActivity({
           workspaceId: payload.workspaceId,
@@ -559,7 +606,8 @@ function createSocketServer(httpServer: RealtimeHttpServer) {
         });
       })().catch((error) => {
         socket.emit("voice:error", {
-          message: error instanceof Error ? error.message : "Unable to join voice.",
+          message:
+            error instanceof Error ? error.message : "Unable to join voice.",
         });
       });
     });
@@ -574,10 +622,12 @@ function createSocketServer(httpServer: RealtimeHttpServer) {
         }
 
         roomState.voiceParticipants.delete(socket.id);
-        socket.to(getRoomName(payload.workspaceId)).emit("voice:participant-left", {
-          socketId: socket.id,
-          userId: participant.userId,
-        });
+        socket
+          .to(getRoomName(payload.workspaceId))
+          .emit("voice:participant-left", {
+            socketId: socket.id,
+            userId: participant.userId,
+          });
         await emitVoiceSnapshot(payload.workspaceId);
         await emitPresenceActivity({
           workspaceId: payload.workspaceId,
@@ -593,7 +643,9 @@ function createSocketServer(httpServer: RealtimeHttpServer) {
     socket.on("voice:signal", (payload) => {
       const roomState = roomStates.get(payload.workspaceId);
       const sourceParticipant = roomState?.voiceParticipants.get(socket.id);
-      const targetParticipant = roomState?.voiceParticipants.get(payload.targetSocketId);
+      const targetParticipant = roomState?.voiceParticipants.get(
+        payload.targetSocketId,
+      );
 
       if (!sourceParticipant || !targetParticipant) {
         return;
@@ -635,9 +687,7 @@ function createSocketServer(httpServer: RealtimeHttpServer) {
   return io;
 }
 
-export function attachWorkspaceRealtimeServer(
-  httpServer: RealtimeHttpServer,
-) {
+export function attachWorkspaceRealtimeServer(httpServer: RealtimeHttpServer) {
   if (isExternalRealtimeEnabled()) {
     return null;
   }
@@ -679,7 +729,10 @@ export function emitWorkspaceTreeUpdate(event: WorkspaceTreeUpdateEvent) {
   io?.to(getRoomName(event.workspaceId)).emit("workspace:tree-updated", event);
 }
 
-export function emitWorkspaceChat(message: WorkspaceChatMessage, workspaceId: string) {
+export function emitWorkspaceChat(
+  message: WorkspaceChatMessage,
+  workspaceId: string,
+) {
   if (isExternalRealtimeEnabled()) {
     publishExternalRealtimeEvent({
       type: "workspace:chat:new",
@@ -693,7 +746,10 @@ export function emitWorkspaceChat(message: WorkspaceChatMessage, workspaceId: st
   io?.to(getRoomName(workspaceId)).emit("workspace:chat:new", message);
 }
 
-export function emitWorkspaceActivity(activity: WorkspaceActivity, workspaceId: string) {
+export function emitWorkspaceActivity(
+  activity: WorkspaceActivity,
+  workspaceId: string,
+) {
   if (isExternalRealtimeEnabled()) {
     publishExternalRealtimeEvent({
       type: "workspace:activity:new",
@@ -707,7 +763,10 @@ export function emitWorkspaceActivity(activity: WorkspaceActivity, workspaceId: 
   io?.to(getRoomName(workspaceId)).emit("workspace:activity:new", activity);
 }
 
-export function emitWorkspaceMembersChanged(workspaceId: string, reason: string) {
+export function emitWorkspaceMembersChanged(
+  workspaceId: string,
+  reason: string,
+) {
   if (isExternalRealtimeEnabled()) {
     publishExternalRealtimeEvent({
       type: "workspace:members-changed",

@@ -18,7 +18,9 @@ export default async function EditorPage({ params }: EditorPageProps) {
   const session = await auth();
 
   if (!session) {
-    redirect(`/signin?callbackUrl=${encodeURIComponent(`/editor/${projectId}`)}`);
+    redirect(
+      `/signin?callbackUrl=${encodeURIComponent(`/editor/${projectId}`)}`,
+    );
   }
 
   try {

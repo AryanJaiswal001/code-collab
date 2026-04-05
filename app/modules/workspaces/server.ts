@@ -543,9 +543,7 @@ async function getWorkspaceAccess(
   };
 }
 
-export async function ensureWorkspaceMembershipOnEntry(
-  workspaceLink: string,
-) {
+export async function ensureWorkspaceMembershipOnEntry(workspaceLink: string) {
   const currentUser = await requireCurrentUser();
   const playground = await prisma.playground.findUnique({
     where: {
