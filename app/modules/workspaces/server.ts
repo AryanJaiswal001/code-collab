@@ -543,6 +543,111 @@ async function getWorkspaceAccess(
   };
 }
 
+export async function ensureWorkspaceMembershipOnEntry(
+  workspaceLink: string,
+) {
+  const currentUser = await requireCurrentUser();
+  const playground = await prisma.playground.findUnique({
+    where: {
+      workspaceLink,
+    },
+    select: {
+      id: true,
+      ownerId: true,
+      mode: true,
+    },
+  });
+
+  if (!playground) {
+    throw new WorkspaceServiceError("Workspace not found.", 404);
+  }
+
+  const existingMember = await prisma.playgroundMember.findFirst({
+    where: {
+      playgroundId: playground.id,
+      userId: currentUser.id,
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+        },
+      },
+    },
+  });
+
+  if (existingMember) {
+    return {
+      workspaceId: workspaceLink,
+      joined: false,
+      member: serializeMember(existingMember),
+    };
+  }
+
+  if (playground.mode === "PERSONAL" && playground.ownerId !== currentUser.id) {
+    throw new WorkspaceServiceError(
+      "You do not have access to that workspace.",
+      403,
+    );
+  }
+
+  try {
+    const createdMember = await prisma.playgroundMember.create({
+      data: {
+        playgroundId: playground.id,
+        userId: currentUser.id,
+        role: playground.ownerId === currentUser.id ? "OWNER" : "MEMBER",
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    return {
+      workspaceId: workspaceLink,
+      joined: true,
+      member: serializeMember(createdMember),
+    };
+  } catch {
+    const racedMember = await prisma.playgroundMember.findFirst({
+      where: {
+        playgroundId: playground.id,
+        userId: currentUser.id,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    if (racedMember) {
+      return {
+        workspaceId: workspaceLink,
+        joined: false,
+        member: serializeMember(racedMember),
+      };
+    }
+
+    throw new WorkspaceServiceError("Unable to join that workspace.", 500);
+  }
+}
+
 async function fetchWorkspaceWithRelations(workspaceLink: string) {
   return prisma.playground.findUnique({
     where: {

@@ -12,9 +12,7 @@ export default async function WorkspacePage({ params }: WorkspacePageProps) {
   const session = await auth();
 
   if (!session) {
-    redirect(
-      `/auth/sign-in?callbackUrl=${encodeURIComponent(`/workspace/${id}`)}`,
-    );
+    redirect(`/signin?callbackUrl=${encodeURIComponent(`/workspace/${id}`)}`);
   }
 
   redirect(`/editor/${id}`);

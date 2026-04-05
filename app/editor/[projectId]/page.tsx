@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import {
+  ensureWorkspaceMembershipOnEntry,
   getWorkspaceSnapshot,
-  WorkspaceServiceError,
 } from "@/app/modules/workspaces/server";
 import { WorkspacePlaygroundShell } from "@/app/modules/playground/components/workspace-playground-shell";
 
@@ -15,32 +15,18 @@ type EditorPageProps = {
 export default async function EditorPage({ params }: EditorPageProps) {
   const { projectId } = await params;
 
-  // Debug DB connection / parameters
-  console.log(
-    `[EditorPage] Opening workspace simulator for projectId: ${projectId}`,
-  );
-
   const session = await auth();
 
   if (!session) {
-    redirect(
-      `/auth/sign-in?callbackUrl=${encodeURIComponent(`/editor/${projectId}`)}`,
-    );
+    redirect(`/signin?callbackUrl=${encodeURIComponent(`/editor/${projectId}`)}`);
   }
 
   try {
-    console.log(`[EditorPage] Fetching Workspace snapshot for ${projectId}...`);
+    await ensureWorkspaceMembershipOnEntry(projectId);
     const snapshot = await getWorkspaceSnapshot(projectId);
-    console.log(`[EditorPage] Snapshot successfully retrieved from database.`);
     return <WorkspacePlaygroundShell initialSnapshot={snapshot} />;
   } catch (error: any) {
     console.error("[EditorPage ERROR] Workspace loading error:", error);
-    console.error(
-      "[EditorPage ERROR DETAILS] Status:",
-      error?.status,
-      "Message:",
-      error?.message,
-    );
 
     const status = error?.status || 500;
     const isAccessDenied = status === 403;

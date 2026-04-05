@@ -156,3 +156,9 @@ export type WorkspaceActivityEvent = {
   workspaceId: string;
   activity: WorkspaceActivity;
 };
+
+export type WorkspaceUserJoinedEvent = {
+  workspaceId: string;
+  member: WorkspacePresence;
+  activity: WorkspaceActivity | null;
+};

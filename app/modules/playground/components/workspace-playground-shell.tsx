@@ -40,9 +40,11 @@ import type {
   WorkspaceChatMessage,
   WorkspaceCurrentUser,
   WorkspaceFileState,
+  WorkspaceMember,
   WorkspacePresence,
   WorkspaceSnapshot,
   WorkspaceTreeUpdateEvent,
+  WorkspaceUserJoinedEvent,
 } from "@/app/modules/workspaces/types";
 import { getWorkspaceSocket } from "@/lib/collaboration/client";
 import { Badge } from "@/components/ui/badge";
@@ -184,6 +186,36 @@ async function postWorkspaceJson<T>(
   return payload as T;
 }
 
+type WorkspaceJoinResponse = {
+  workspaceId: string;
+  joined: boolean;
+  member: WorkspaceMember;
+};
+
+async function joinWorkspaceMembership(workspaceId: string) {
+  const response = await fetch(`/api/workspaces/${workspaceId}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "join",
+    }),
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | WorkspaceJoinResponse
+    | { error?: string }
+    | null;
+
+  if (!response.ok) {
+    throw new Error(
+      getRouteErrorMessage(payload, "Unable to join that workspace."),
+    );
+  }
+
+  return payload as WorkspaceJoinResponse;
+}
+
 async function sendWorkspaceChatOverSocket(params: {
   socket: Awaited<ReturnType<typeof getWorkspaceSocket>>;
   workspaceId: string;
@@ -276,6 +308,7 @@ export function WorkspacePlaygroundShell({
     useState<GitHubRepositorySummary | null>(null);
   const [isImportingRepository, setIsImportingRepository] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [isWorkspaceJoinReady, setIsWorkspaceJoinReady] = useState(false);
   const [socket, setSocket] = useState<Awaited<
     ReturnType<typeof getWorkspaceSocket>
   > | null>(null);
@@ -974,6 +1007,65 @@ export function WorkspacePlaygroundShell({
 
   useEffect(() => {
     let active = true;
+    setIsWorkspaceJoinReady(false);
+
+    void joinWorkspaceMembership(snapshot.id)
+      .then((result) => {
+        if (!active) {
+          return;
+        }
+
+        setIsWorkspaceJoinReady(true);
+
+        if (result.joined) {
+          startTransition(() => {
+            void fetchWorkspaceSnapshot(snapshot.id)
+              .then((nextSnapshot) => {
+                applySnapshotMetadata(nextSnapshot);
+              })
+              .catch(() => {
+                // Metadata refresh is best effort after join.
+              });
+          });
+        }
+      })
+      .catch((error) => {
+        if (!active) {
+          return;
+        }
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to join this workspace.";
+
+        if (/sign in|unauthorized/i.test(message)) {
+          router.push(
+            `/signin?callbackUrl=${encodeURIComponent(`/editor/${snapshot.id}`)}`,
+          );
+          return;
+        }
+
+        if (/access/i.test(message)) {
+          toast.error("You do not have access to this workspace.");
+          router.push("/dashboard");
+          return;
+        }
+
+        toast.error(message);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [router, snapshot.id]);
+
+  useEffect(() => {
+    if (!isWorkspaceJoinReady) {
+      return;
+    }
+
+    let active = true;
 
     void getWorkspaceSocket()
       .then((connectedSocket) => {
@@ -995,13 +1087,20 @@ export function WorkspacePlaygroundShell({
     return () => {
       active = false;
     };
-  }, []);
+  }, [isWorkspaceJoinReady]);
 
   const joinWorkspaceRoom = useEffectEvent(
     (connectedSocket: NonNullable<typeof socket>) => {
-      connectedSocket.emit("workspace:join", {
+      connectedSocket.emit("join-workspace", {
         workspaceId: snapshot.id,
         activeFilePath: activeFileId,
+        user: {
+          userId: currentUser.userId,
+          name: currentUser.name,
+          email: currentUser.email,
+          image: currentUser.image,
+          username: currentUser.username,
+        },
       });
     },
   );
@@ -1075,6 +1174,38 @@ export function WorkspacePlaygroundShell({
       }
     };
 
+    const handleUserJoined = (payload: WorkspaceUserJoinedEvent) => {
+      if (payload.workspaceId !== snapshot.id) {
+        return;
+      }
+
+      if (payload.activity) {
+        mergeTimelineItem(payload.activity, "activity");
+      } else {
+        mergeTimelineItem(
+          {
+            id: `joined:${payload.member.userId}:${Date.now()}`,
+            type: "MEMBER_JOINED",
+            message: `${payload.member.name} joined the workspace.`,
+            filePath: null,
+            createdAt: new Date().toISOString(),
+            actor: {
+              userId: payload.member.userId,
+              name: payload.member.name,
+              email: payload.member.email,
+              image: payload.member.image,
+              username: payload.member.username,
+            },
+          },
+          "activity",
+        );
+      }
+
+      if (payload.member.userId !== currentUser.userId) {
+        toast.message(`${payload.member.name} joined the workspace.`);
+      }
+    };
+
     const handleMembersChanged = () => {
       startTransition(() => {
         void fetchWorkspaceSnapshot(snapshot.id)
@@ -1097,6 +1228,7 @@ export function WorkspacePlaygroundShell({
     socket.on("workspace:tree-updated", handleTreeUpdate);
     socket.on("workspace:chat:new", handleChat);
     socket.on("workspace:activity:new", handleActivity);
+    socket.on("user-joined", handleUserJoined);
     socket.on("workspace:members-changed", handleMembersChanged);
 
     return () => {
@@ -1109,6 +1241,7 @@ export function WorkspacePlaygroundShell({
       socket.off("workspace:tree-updated", handleTreeUpdate);
       socket.off("workspace:chat:new", handleChat);
       socket.off("workspace:activity:new", handleActivity);
+      socket.off("user-joined", handleUserJoined);
       socket.off("workspace:members-changed", handleMembersChanged);
     };
   }, [

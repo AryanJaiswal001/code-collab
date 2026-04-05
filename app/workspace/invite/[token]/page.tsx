@@ -18,7 +18,7 @@ export default async function WorkspaceInvitePage({
 
   if (!session) {
     redirect(
-      `/auth/sign-in?callbackUrl=${encodeURIComponent(`/workspace/invite/${token}`)}`,
+      `/signin?callbackUrl=${encodeURIComponent(`/workspace/invite/${token}`)}`,
     );
   }
 

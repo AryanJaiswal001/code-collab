@@ -286,10 +286,13 @@ async function emitPresenceActivity(io, params) {
 
     if (activity) {
       emitWorkspaceActivity(io, activity, params.workspaceId);
+      return activity;
     }
   } catch (error) {
     console.error("Unable to record realtime activity.", error);
   }
+
+  return null;
 }
 
 async function handleLeave(io, socket) {
@@ -374,13 +377,19 @@ async function handleJoin(io, socket, payload) {
   socket.join(getRoomName(payload.workspaceId));
 
   emitPresenceSnapshot(io, payload.workspaceId);
-  await emitPresenceActivity(io, {
+  const joinedActivity = await emitPresenceActivity(io, {
     workspaceId: payload.workspaceId,
     userId: connection.userId,
     type: "MEMBER_JOINED",
     message: `${connection.name} joined the workspace.`,
     dedupeKey: `member-joined:${connection.userId}`,
     dedupeWindowMs: 10_000,
+  });
+
+  io.to(getRoomName(payload.workspaceId)).emit("user-joined", {
+    workspaceId: payload.workspaceId,
+    member: connection,
+    activity: joinedActivity,
   });
 
   if (connection.activeFilePath) {
@@ -587,7 +596,7 @@ io.use((socket, next) => {
 });
 
 io.on("connection", (socket) => {
-  socket.on("workspace:join", (payload) => {
+  const handleJoinRequest = (payload) => {
     void handleJoin(io, socket, payload).catch((error) => {
       socket.emit("voice:error", {
         message:
@@ -596,7 +605,10 @@ io.on("connection", (socket) => {
             : "Unable to join the workspace room.",
       });
     });
-  });
+  };
+
+  socket.on("workspace:join", handleJoinRequest);
+  socket.on("join-workspace", handleJoinRequest);
 
   socket.on("workspace:leave", () => {
     void handleLeave(io, socket);

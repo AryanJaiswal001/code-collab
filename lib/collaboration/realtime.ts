@@ -15,6 +15,7 @@ import type {
   WorkspaceMemberRoleValue,
   WorkspacePresence,
   WorkspaceTreeUpdateEvent,
+  WorkspaceUserJoinedEvent,
   WorkspaceVoiceParticipant,
 } from "@/app/modules/workspaces/types";
 import {
@@ -58,6 +59,7 @@ type ServerToClientEvents = {
   "workspace:tree-updated": (event: WorkspaceTreeUpdateEvent) => void;
   "workspace:chat:new": (message: WorkspaceChatMessage) => void;
   "workspace:activity:new": (activity: WorkspaceActivity) => void;
+  "user-joined": (payload: WorkspaceUserJoinedEvent) => void;
   "workspace:members-changed": (payload: { workspaceId: string; reason: string }) => void;
   "voice:participants": (participants: WorkspaceVoiceParticipant[]) => void;
   "voice:participant-joined": (participant: WorkspaceVoiceParticipant) => void;
@@ -74,7 +76,16 @@ type ServerToClientEvents = {
 };
 
 type ClientToServerEvents = {
-  "workspace:join": (payload: { workspaceId: string; activeFilePath?: string | null }) => void;
+  "workspace:join": (payload: {
+    workspaceId: string;
+    activeFilePath?: string | null;
+    user?: WorkspaceActor;
+  }) => void;
+  "join-workspace": (payload: {
+    workspaceId: string;
+    activeFilePath?: string | null;
+    user?: WorkspaceActor;
+  }) => void;
   "workspace:leave": (payload: { workspaceId: string }) => void;
   "workspace:active-file": (payload: { workspaceId: string; activeFilePath?: string | null }) => void;
   "workspace:chat:send": (
@@ -276,7 +287,10 @@ async function emitPresenceActivity(params: {
 
   if (activity) {
     emitWorkspaceActivity(activity, params.workspaceId);
+    return activity;
   }
+
+  return null;
 }
 
 async function handleLeave(socket: Socket<ClientToServerEvents, ServerToClientEvents>) {
@@ -336,7 +350,11 @@ async function handleLeave(socket: Socket<ClientToServerEvents, ServerToClientEv
 
 async function handleJoin(
   socket: Socket<ClientToServerEvents, ServerToClientEvents>,
-  payload: { workspaceId: string; activeFilePath?: string | null },
+  payload: {
+    workspaceId: string;
+    activeFilePath?: string | null;
+    user?: WorkspaceActor;
+  },
 ) {
   const socketData = getSocketData(socket);
 
@@ -361,13 +379,20 @@ async function handleJoin(
   socket.join(getRoomName(payload.workspaceId));
 
   await emitPresenceSnapshot(payload.workspaceId);
-  await emitPresenceActivity({
+  const joinedActivity = await emitPresenceActivity({
     workspaceId: payload.workspaceId,
     userId: connection.userId,
     type: "MEMBER_JOINED",
     message: `${connection.name} joined the workspace.`,
     dedupeKey: `member-joined:${connection.userId}`,
     dedupeWindowMs: 10_000,
+  });
+
+  const io = getSocketServer();
+  io?.to(getRoomName(payload.workspaceId)).emit("user-joined", {
+    workspaceId: payload.workspaceId,
+    member: connection,
+    activity: joinedActivity,
   });
 
   if (connection.activeFilePath) {
@@ -430,13 +455,20 @@ function createSocketServer(httpServer: RealtimeHttpServer) {
   });
 
   io.on("connection", (socket) => {
-    socket.on("workspace:join", (payload) => {
+    const handleJoinRequest = (payload: {
+      workspaceId: string;
+      activeFilePath?: string | null;
+      user?: WorkspaceActor;
+    }) => {
       void handleJoin(socket, payload).catch((error) => {
         socket.emit("voice:error", {
           message: error instanceof Error ? error.message : "Unable to join the workspace room.",
         });
       });
-    });
+    };
+
+    socket.on("workspace:join", handleJoinRequest);
+    socket.on("join-workspace", handleJoinRequest);
 
     socket.on("workspace:leave", () => {
       void handleLeave(socket);
