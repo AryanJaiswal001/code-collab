@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ projectId: string }> }
+  { params }: { params: Promise<{ projectId: string }> },
 ) {
   try {
     const { projectId } = await params;
@@ -14,14 +14,19 @@ export async function GET(
     });
 
     if (!workspace) {
-      console.log(`[GET /api/workspace] Workspace not found in MongoDB for: ${projectId}`);
+      console.log(
+        `[GET /api/workspace] Workspace not found in MongoDB for: ${projectId}`,
+      );
       return NextResponse.json(
         { error: "Workspace not found" },
         { status: 404 },
       );
     }
 
-    console.log(`[GET /api/workspace] Successfully retrieved workspace:`, workspace);
+    console.log(
+      `[GET /api/workspace] Successfully retrieved workspace:`,
+      workspace,
+    );
     return NextResponse.json({ workspace }, { status: 200 });
   } catch (error: any) {
     console.error("[GET /api/workspace] Prisma connection/query error:", error);

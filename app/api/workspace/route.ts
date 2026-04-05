@@ -12,8 +12,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(`[POST /api/workspace] Creating workspace with projectId: ${projectId}`);
-    
+    console.log(
+      `[POST /api/workspace] Creating workspace with projectId: ${projectId}`,
+    );
+
     // Prevent duplicate errors by doing an upsert or checking first
     const workspace = await prisma.workspace.upsert({
       where: { projectId },
@@ -21,7 +23,10 @@ export async function POST(req: NextRequest) {
       create: { projectId },
     });
 
-    console.log(`[POST /api/workspace] Successfully saved to MongoDB:`, workspace);
+    console.log(
+      `[POST /api/workspace] Successfully saved to MongoDB:`,
+      workspace,
+    );
     return NextResponse.json({ workspace }, { status: 201 });
   } catch (error: any) {
     console.error("[POST /api/workspace] Prisma query failed:", error);

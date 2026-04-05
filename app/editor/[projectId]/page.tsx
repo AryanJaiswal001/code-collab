@@ -14,10 +14,12 @@ type EditorPageProps = {
 
 export default async function EditorPage({ params }: EditorPageProps) {
   const { projectId } = await params;
-  
+
   // Debug DB connection / parameters
-  console.log(`[EditorPage] Opening workspace simulator for projectId: ${projectId}`);
-  
+  console.log(
+    `[EditorPage] Opening workspace simulator for projectId: ${projectId}`,
+  );
+
   const session = await auth();
 
   if (!session) {
@@ -33,7 +35,12 @@ export default async function EditorPage({ params }: EditorPageProps) {
     return <WorkspacePlaygroundShell initialSnapshot={snapshot} />;
   } catch (error: any) {
     console.error("[EditorPage ERROR] Workspace loading error:", error);
-    console.error("[EditorPage ERROR DETAILS] Status:", error?.status, "Message:", error?.message);
+    console.error(
+      "[EditorPage ERROR DETAILS] Status:",
+      error?.status,
+      "Message:",
+      error?.message,
+    );
 
     const status = error?.status || 500;
     const isAccessDenied = status === 403;
