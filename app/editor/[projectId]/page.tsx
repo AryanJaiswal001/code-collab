@@ -1,5 +1,9 @@
-import { notFound } from "next/navigation";
-import { getWorkspaceSnapshot } from "@/app/modules/workspaces/server";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import {
+  getWorkspaceSnapshot,
+  WorkspaceServiceError,
+} from "@/app/modules/workspaces/server";
 import { WorkspacePlaygroundShell } from "@/app/modules/playground/components/workspace-playground-shell";
 
 export const dynamic = "force-dynamic";
@@ -10,32 +14,36 @@ type EditorPageProps = {
 
 export default async function EditorPage({ params }: EditorPageProps) {
   const { projectId } = await params;
-  const snapshot = await getWorkspaceSnapshot(projectId).catch((error) => {
-    console.error("Workspace loading error:", error);
-    return null;
-  });
+  const session = await auth();
 
-  if (!snapshot) {
-    // Return a minimal working page instead of triggering Vercel's 404
-    return (
-      <div
-        style={{
-          padding: "40px",
-          color: "white",
-          minHeight: "100vh",
-          backgroundColor: "#050816",
-        }}
-      >
-        <h1>Editor Page: {projectId}</h1>
-        <p>The dynamic route is working successfully!</p>
-        <p style={{ marginTop: "20px", color: "#888" }}>
-          Notice: The collaborative workspace database record could not be
-          loaded, which previously caused a hard 404 error via Next.js
-          `notFound()`.
-        </p>
-      </div>
+  if (!session) {
+    redirect(
+      `/auth/sign-in?callbackUrl=${encodeURIComponent(`/editor/${projectId}`)}`,
     );
   }
 
-  return <WorkspacePlaygroundShell initialSnapshot={snapshot} />;
+  try {
+    const snapshot = await getWorkspaceSnapshot(projectId);
+    return <WorkspacePlaygroundShell initialSnapshot={snapshot} />;
+  } catch (error: any) {
+    console.error("Workspace loading error:", error);
+
+    const status = error?.status || 500;
+    const isAccessDenied = status === 403;
+
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.08),transparent_30%),#050816] px-4 py-10 text-white">
+        <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 shadow-[0_24px_80px_rgba(2,6,23,0.45)] text-center">
+          <h1 className="text-2xl font-semibold text-white/90">
+            {isAccessDenied ? "Access Denied" : "Workspace Not Found"}
+          </h1>
+          <p className="mt-4 text-sm leading-6 text-white/60">
+            {isAccessDenied
+              ? "You do not have permission to view this workspace. Please ask the owner to send you an invite link."
+              : "The workspace you are looking for does not exist, or you used an invalid link."}
+          </p>
+        </div>
+      </div>
+    );
+  }
 }

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { acceptWorkspaceInviteToken } from "@/app/modules/workspaces/server";
 import { emitWorkspaceMembersChanged } from "@/lib/collaboration/realtime";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,14 @@ export default async function WorkspaceInvitePage({
   params,
 }: WorkspaceInvitePageProps) {
   const { token } = await params;
+  const session = await auth();
+
+  if (!session) {
+    redirect(
+      `/auth/sign-in?callbackUrl=${encodeURIComponent(`/workspace/invite/${token}`)}`,
+    );
+  }
+
   console.log("WorkspaceInvitePage rendered with token:", token);
 
   async function acceptInvite() {
