@@ -31,11 +31,15 @@ export default async function WorkspaceInvitePage({
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Join This Workspace</h1>
         <p className="mt-4 text-sm leading-7 text-white/65">
-          Accept the invite to become a workspace member and open the shared editor.
+          Accept the invite to become a workspace member and open the shared
+          editor.
         </p>
 
         <form action={acceptInvite} className="mt-8">
-          <Button type="submit" className="w-full rounded-2xl bg-white text-black hover:bg-white/90">
+          <Button
+            type="submit"
+            className="w-full rounded-2xl bg-white text-black hover:bg-white/90"
+          >
             Accept Invite
           </Button>
         </form>

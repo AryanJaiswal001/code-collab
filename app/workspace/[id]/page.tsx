@@ -7,14 +7,14 @@ type WorkspacePageProps = {
   params: Promise<{ id: string }>;
 };
 
-export default async function WorkspacePage({
-  params,
-}: WorkspacePageProps) {
+export default async function WorkspacePage({ params }: WorkspacePageProps) {
   const { id } = await params;
   const session = await auth();
 
   if (!session) {
-    redirect(`/auth/sign-in?callbackUrl=${encodeURIComponent(`/workspace/${id}`)}`);
+    redirect(
+      `/auth/sign-in?callbackUrl=${encodeURIComponent(`/workspace/${id}`)}`,
+    );
   }
 
   redirect(`/editor/${id}`);
