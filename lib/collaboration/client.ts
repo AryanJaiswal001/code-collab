@@ -13,7 +13,9 @@ const SOCKET_CONFIG_INITIAL_BACKOFF_MS = 750;
 const SOCKET_COLD_START_DELAY_MS = 500;
 
 if (!SOCKET_URL) {
-  console.warn("NEXT_PUBLIC_SOCKET_URL is not set. Falling back to runtime config URL.");
+  console.warn(
+    "NEXT_PUBLIC_SOCKET_URL is not set. Falling back to runtime config URL.",
+  );
 }
 
 type RealtimeConnectionConfig =
@@ -35,9 +37,9 @@ async function getRealtimeConnectionConfig() {
   });
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as
-      | { error?: string }
-      | null;
+    const payload = (await response.json().catch(() => null)) as {
+      error?: string;
+    } | null;
     throw new Error(
       payload?.error || "Unable to prepare the realtime connection.",
     );
