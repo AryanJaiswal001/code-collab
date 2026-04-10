@@ -610,7 +610,7 @@ export function CollaborationPanel({
                         participant.userId === currentUser.userId;
                       const isMuted = isCurrentUser
                         ? isSelfMuted
-                        : participant.isVoiceMuted;
+                        : participant.isMutedByModerator;
                       const isActiveSpeaker = isCurrentUser
                         ? !isSelfMuted &&
                           isListeningForSound &&
