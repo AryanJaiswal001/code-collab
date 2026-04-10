@@ -144,9 +144,9 @@ export function MergeRequestPanel() {
                 variant="outline"
                 className={cn(
                   "text-[10px] uppercase font-bold",
-                    selectedMr.status === "PENDING" &&
-                      "border-blue-500 text-blue-400",
-                    selectedMr.status === "APPROVED" &&
+                  selectedMr.status === "PENDING" && "border-blue-500 text-blue-400",
+                  selectedMr.status === "APPROVED" && "border-emerald-500 text-emerald-400",
+                  selectedMr.status === "REJECTED" && "border-red-500 text-red-400"
                 )}
               >
                 {selectedMr.status}
