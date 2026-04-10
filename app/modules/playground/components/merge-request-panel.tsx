@@ -69,7 +69,10 @@ export function MergeRequestPanel() {
     fetchMrs();
   }, [workspaceId]);
 
-  const handleAction = async (mrId: string, action: "APPROVED" | "REJECTED") => {
+  const handleAction = async (
+    mrId: string,
+    action: "APPROVED" | "REJECTED",
+  ) => {
     try {
       setIsMutating(true);
       const res = await fetch(`/api/workspaces/${workspaceId}/merge-requests`, {
@@ -144,9 +147,12 @@ export function MergeRequestPanel() {
                 variant="outline"
                 className={cn(
                   "text-[10px] uppercase font-bold",
-                  selectedMr.status === "PENDING" && "border-blue-500 text-blue-400",
-                  selectedMr.status === "APPROVED" && "border-emerald-500 text-emerald-400",
-                  selectedMr.status === "REJECTED" && "border-red-500 text-red-400"
+                  selectedMr.status === "PENDING" &&
+                    "border-blue-500 text-blue-400",
+                  selectedMr.status === "APPROVED" &&
+                    "border-emerald-500 text-emerald-400",
+                  selectedMr.status === "REJECTED" &&
+                    "border-red-500 text-red-400",
                 )}
               >
                 {selectedMr.status}
