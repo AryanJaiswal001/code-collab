@@ -212,7 +212,7 @@ export function PlaygroundEditor({
             onClick={() => onPushFile(activeFile?.id)}
             disabled={!activeFile || isReadOnly}
           >
-            Push to workspace
+            Request Merge
           </Button>
           <Button
             type="button"

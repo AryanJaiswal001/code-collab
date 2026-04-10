@@ -599,41 +599,33 @@ export function WorkspacePlaygroundShell({
       return;
     }
 
-    if (!canEditPath(targetFile.path, "file")) {
-      toast.error("You do not have permission to push that file.");
-      return;
-    }
-
     try {
-      const result = await postWorkspaceJson<{
-        fileState: WorkspaceFileState;
-      }>(snapshot.id, "files", {
-        action: "push",
-        path: targetFile.path,
-        content: targetFile.file.content,
-      });
+      const response = await fetch(
+        `/api/workspaces/${snapshot.id}/merge-requests`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: `Update ${targetFile.name}`,
+            path: targetFile.path,
+            content: targetFile.file.content,
+          }),
+        },
+      );
 
-      setFileStates((currentStates) => {
-        const nextStates = currentStates.filter(
-          (state) => state.path !== result.fileState.path,
-        );
-        return [...nextStates, result.fileState].sort((left, right) =>
-          left.path.localeCompare(right.path),
-        );
-      });
-      setWorkspaceSyncedContents((currentContents) => ({
-        ...currentContents,
-        [targetFile.path]: targetFile.file.content,
-      }));
-      setPendingFileUpdates((currentUpdates) => {
-        const nextUpdates = { ...currentUpdates };
-        delete nextUpdates[targetFile.path];
-        return nextUpdates;
-      });
-      toast.success(`Pushed ${targetFile.path} to the workspace.`);
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      toast.success("Merge request created for admin review.");
+
+      // Optionally save file locally so the user knows it's saved locally
+      void handleSaveFile(targetFileId);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Unable to push that file.",
+        error instanceof Error
+          ? error.message
+          : "Unable to create merge request.",
       );
     }
   }

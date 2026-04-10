@@ -24,6 +24,7 @@ model User {
   playgroundActivities     PlaygroundActivity[]  @relation("PlaygroundActivityActor")
   playgroundEntriesUpdated PlaygroundEntry[]     @relation("PlaygroundEntryUpdatedBy")
   assignedPlaygroundEntries PlaygroundEntry[]    @relation("PlaygroundEntryAssignee")
+  mergeRequests            MergeRequest[]      @relation("MergeRequestsAuthor")
 }
 
 model Account {
@@ -107,6 +108,12 @@ enum PlaygroundActivityType {
   INVITE_ACCEPTED
 }
 
+enum MergeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum PlaygroundTemplate {
   REACT
   NEXTJS
@@ -136,6 +143,7 @@ model Playground {
   invites            PlaygroundInvite[]
   chatMessages       PlaygroundChatMessage[]
   activities         PlaygroundActivity[]
+  mergeRequests      MergeRequest[]
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
 }
@@ -217,3 +225,19 @@ model PlaygroundActivity {
   playground   Playground             @relation(fields: [playgroundId], references: [id], onDelete: Cascade)
   actor        User?                  @relation("PlaygroundActivityActor", fields: [actorId], references: [id])
 }
+
+model MergeRequest {
+  id           String             @id @default(auto()) @map("_id") @db.ObjectId
+  playgroundId String             @db.ObjectId
+  authorId     String             @db.ObjectId
+  title        String
+  description  String?
+  status       MergeRequestStatus @default(PENDING)
+  changes      Json
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  playground   Playground         @relation(fields: [playgroundId], references: [id], onDelete: Cascade)
+  author       User               @relation("MergeRequestsAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+}
+
