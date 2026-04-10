@@ -143,7 +143,8 @@ export function PlaygroundEditor({
             ) : null}
           </div>
           <p className="truncate text-xs text-white/45 mt-1">
-            {activeFile?.path ?? "Choose a file from the explorer to begin editing."}
+            {activeFile?.path ??
+              "Choose a file from the explorer to begin editing."}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <span
@@ -193,33 +194,33 @@ export function PlaygroundEditor({
               Assign file
             </Button>
           ) : null}
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className={secondaryButtonClass}
-              onClick={onSaveAllFiles}
-              disabled={!hasDirtyFiles}
-            >
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className={secondaryButtonClass}
+            onClick={onSaveAllFiles}
+            disabled={!hasDirtyFiles}
+          >
             <Sparkles className="h-4 w-4" />
             Save all
           </Button>
-            <Button
-              type="button"
-              size="sm"
-              className={primaryButtonClass}
-              onClick={() => onPushFile(activeFile?.id)}
-              disabled={!activeFile || isReadOnly}
-            >
-              Push to workspace
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              className={secondaryButtonClass}
-              onClick={() => onSaveFile(activeFile?.id)}
-              disabled={!activeFile || !activeTab?.isDirty || isReadOnly}
-            >
+          <Button
+            type="button"
+            size="sm"
+            className={primaryButtonClass}
+            onClick={() => onPushFile(activeFile?.id)}
+            disabled={!activeFile || isReadOnly}
+          >
+            Push to workspace
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className={secondaryButtonClass}
+            onClick={() => onSaveFile(activeFile?.id)}
+            disabled={!activeFile || !activeTab?.isDirty || isReadOnly}
+          >
             <Save className="h-4 w-4" />
             Save
           </Button>
@@ -235,11 +236,16 @@ export function PlaygroundEditor({
             theme="vs-dark"
             value={activeFile.file.content}
             onMount={(instance, monaco) => {
-              instance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-                onSaveFile(activeFile.id);
-              });
               instance.addCommand(
-                monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS,
+                monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+                () => {
+                  onSaveFile(activeFile.id);
+                },
+              );
+              instance.addCommand(
+                monaco.KeyMod.CtrlCmd |
+                  monaco.KeyMod.Shift |
+                  monaco.KeyCode.KeyS,
                 () => {
                   onSaveAllFiles();
                 },
@@ -254,9 +260,12 @@ export function PlaygroundEditor({
         ) : (
           <div className="flex h-full min-h-0 items-center justify-center overflow-auto bg-[radial-gradient(circle_at_top,rgba(125,211,252,0.08),transparent_35%)] p-6">
             <div className="max-w-sm rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center">
-              <p className="text-sm font-medium text-white">No active editor tab</p>
+              <p className="text-sm font-medium text-white">
+                No active editor tab
+              </p>
               <p className="mt-2 text-sm leading-6 text-white/50">
-                Open a file from the explorer or create a new one to start working.
+                Open a file from the explorer or create a new one to start
+                working.
               </p>
             </div>
           </div>

@@ -166,7 +166,10 @@ export function CollaborationPanel({
             return (
               <div key={member.userId} className="relative">
                 <Avatar className="h-9 w-9 border border-white/10">
-                  <AvatarImage src={member.image ?? undefined} alt={member.name} />
+                  <AvatarImage
+                    src={member.image ?? undefined}
+                    alt={member.name}
+                  />
                   <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
                 </Avatar>
                 <span
@@ -180,7 +183,8 @@ export function CollaborationPanel({
           })}
           <div className="min-w-0">
             <p className="text-sm font-medium text-white">
-              {presence.length} online collaborator{presence.length === 1 ? "" : "s"}
+              {presence.length} online collaborator
+              {presence.length === 1 ? "" : "s"}
             </p>
             <p className="text-xs text-white/45">
               {voiceParticipants.length} in voice right now
@@ -198,35 +202,56 @@ export function CollaborationPanel({
       >
         <div className="border-b border-white/10 px-3 py-3">
           <TabsList className="grid w-full grid-cols-4 gap-1 rounded-xl bg-white/5 p-1">
-            <TabsTrigger value="chat" className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs">
+            <TabsTrigger
+              value="chat"
+              className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs"
+            >
               <MessageSquare className="h-4 w-4" />
               Chat
               {unreadChatCount ? (
-                <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px]">
+                <Badge
+                  variant="secondary"
+                  className="ml-1 px-1.5 py-0 text-[10px]"
+                >
                   {unreadChatCount}
                 </Badge>
               ) : null}
             </TabsTrigger>
-            <TabsTrigger value="members" className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs">
+            <TabsTrigger
+              value="members"
+              className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs"
+            >
               <Users className="h-4 w-4" />
               Members
             </TabsTrigger>
-            <TabsTrigger value="voice" className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs">
+            <TabsTrigger
+              value="voice"
+              className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs"
+            >
               <Radio className="h-4 w-4" />
               Voice
             </TabsTrigger>
-            <TabsTrigger value="activity" className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs">
+            <TabsTrigger
+              value="activity"
+              className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs"
+            >
               <Activity className="h-4 w-4" />
               Activity
               {unreadActivityCount ? (
-                <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px]">
+                <Badge
+                  variant="secondary"
+                  className="ml-1 px-1.5 py-0 text-[10px]"
+                >
                   {unreadActivityCount}
                 </Badge>
               ) : null}
             </TabsTrigger>
           </TabsList>
         </div>
-        <TabsContent value="chat" className="mt-0 flex h-full flex-col data-[state=inactive]:hidden">
+        <TabsContent
+          value="chat"
+          className="mt-0 flex h-full flex-col data-[state=inactive]:hidden"
+        >
           <ScrollArea className="ide-scrollbar min-h-0 flex-1 px-4 py-4">
             <div className="space-y-3">
               {chatMessages.length ? (
@@ -243,8 +268,13 @@ export function CollaborationPanel({
                     >
                       {!isSelf ? (
                         <Avatar className="mt-0.5 h-8 w-8 border border-white/10">
-                          <AvatarImage src={message.author.image ?? undefined} alt={message.author.name} />
-                          <AvatarFallback>{getInitials(message.author.name)}</AvatarFallback>
+                          <AvatarImage
+                            src={message.author.image ?? undefined}
+                            alt={message.author.name}
+                          />
+                          <AvatarFallback>
+                            {getInitials(message.author.name)}
+                          </AvatarFallback>
                         </Avatar>
                       ) : null}
                       <div
@@ -263,7 +293,9 @@ export function CollaborationPanel({
                             })}
                           </span>
                         </div>
-                        <p className="mt-1 whitespace-pre-wrap leading-6">{message.content}</p>
+                        <p className="mt-1 whitespace-pre-wrap leading-6">
+                          {message.content}
+                        </p>
                       </div>
                     </div>
                   );
@@ -294,7 +326,10 @@ export function CollaborationPanel({
           </div>
         </TabsContent>
 
-        <TabsContent value="members" className="mt-0 flex h-full flex-col data-[state=inactive]:hidden">
+        <TabsContent
+          value="members"
+          className="mt-0 flex h-full flex-col data-[state=inactive]:hidden"
+        >
           <ScrollArea className="ide-scrollbar min-h-0 flex-1 px-4 py-4">
             <div className="space-y-4">
               {members.map((member) => {
@@ -324,8 +359,13 @@ export function CollaborationPanel({
                     <div className="flex items-start gap-3">
                       <div className="relative">
                         <Avatar className="h-10 w-10 border border-white/10">
-                          <AvatarImage src={member.image ?? undefined} alt={member.name} />
-                          <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
+                          <AvatarImage
+                            src={member.image ?? undefined}
+                            alt={member.name}
+                          />
+                          <AvatarFallback>
+                            {getInitials(member.name)}
+                          </AvatarFallback>
                         </Avatar>
                         <span
                           className={cn(
@@ -336,17 +376,27 @@ export function CollaborationPanel({
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="truncate text-sm font-medium text-white">{member.name}</p>
-                          <Badge variant="outline" className="border-white/10 bg-white/5 text-white/75">
+                          <p className="truncate text-sm font-medium text-white">
+                            {member.name}
+                          </p>
+                          <Badge
+                            variant="outline"
+                            className="border-white/10 bg-white/5 text-white/75"
+                          >
                             {member.role}
                           </Badge>
                           {member.isVoiceMuted ? (
-                            <Badge variant="outline" className="border-red-400/20 bg-red-400/10 text-red-200">
+                            <Badge
+                              variant="outline"
+                              className="border-red-400/20 bg-red-400/10 text-red-200"
+                            >
                               Voice muted
                             </Badge>
                           ) : null}
                         </div>
-                        <p className="truncate text-xs text-white/45">{member.email ?? "No email"}</p>
+                        <p className="truncate text-xs text-white/45">
+                          {member.email ?? "No email"}
+                        </p>
                         <p className="mt-2 text-xs text-white/55">
                           {online?.activeFilePath
                             ? `Active in ${online.activeFilePath}`
@@ -391,7 +441,12 @@ export function CollaborationPanel({
                             size="sm"
                             variant="outline"
                             className={secondaryButtonClass}
-                            onClick={() => onToggleVoiceMute(member.userId, !member.isVoiceMuted)}
+                            onClick={() =>
+                              onToggleVoiceMute(
+                                member.userId,
+                                !member.isVoiceMuted,
+                              )
+                            }
                             disabled={memberActionInFlightId === member.userId}
                           >
                             {member.isVoiceMuted ? (
@@ -399,7 +454,9 @@ export function CollaborationPanel({
                             ) : (
                               <MicOff className="mr-1.5 h-4 w-4" />
                             )}
-                            {member.isVoiceMuted ? "Restore voice" : "Mute voice"}
+                            {member.isVoiceMuted
+                              ? "Restore voice"
+                              : "Mute voice"}
                           </Button>
                         ) : null}
                         {canRemove ? (
@@ -450,7 +507,9 @@ export function CollaborationPanel({
                       variant="ghost"
                       size="sm"
                       className="shrink-0 h-7 px-2.5 text-xs text-white hover:bg-white/10"
-                      onClick={() => navigator.clipboard.writeText(latestInviteUrl)}
+                      onClick={() =>
+                        navigator.clipboard.writeText(latestInviteUrl)
+                      }
                     >
                       Copy
                     </Button>
@@ -459,7 +518,9 @@ export function CollaborationPanel({
 
                 <Input
                   value={inviteEmailDraft}
-                  onChange={(event) => onInviteEmailDraftChange(event.target.value)}
+                  onChange={(event) =>
+                    onInviteEmailDraftChange(event.target.value)
+                  }
                   placeholder="teammate@company.com, reviewer@company.com"
                   className="rounded-2xl border-white/10 bg-white/[0.03] text-white placeholder:text-white/35"
                 />
@@ -477,7 +538,10 @@ export function CollaborationPanel({
           ) : null}
         </TabsContent>
 
-        <TabsContent value="voice" className="mt-0 flex h-full flex-col data-[state=inactive]:hidden bg-[#0F111A]">
+        <TabsContent
+          value="voice"
+          className="mt-0 flex h-full flex-col data-[state=inactive]:hidden bg-[#0F111A]"
+        >
           {isVoiceJoined ? (
             <>
               <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-white/5 bg-[#171A21] px-4 py-3">
@@ -486,7 +550,9 @@ export function CollaborationPanel({
                     <Volume2 className="h-4 w-4" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-white tracking-tight">Voice Channel</h2>
+                    <h2 className="text-sm font-bold text-white tracking-tight">
+                      Voice Channel
+                    </h2>
                     <p className="text-xs font-medium text-emerald-400">
                       {voiceParticipants.length} connected
                     </p>
@@ -540,10 +606,15 @@ export function CollaborationPanel({
                 <div className="grid grid-cols-1 gap-2">
                   {voiceParticipants.length ? (
                     voiceParticipants.map((participant) => {
-                      const isCurrentUser = participant.userId === currentUser.userId;
-                      const isMuted = isCurrentUser ? isSelfMuted : participant.isVoiceMuted;
+                      const isCurrentUser =
+                        participant.userId === currentUser.userId;
+                      const isMuted = isCurrentUser
+                        ? isSelfMuted
+                        : participant.isVoiceMuted;
                       const isActiveSpeaker = isCurrentUser
-                        ? !isSelfMuted && isListeningForSound && localAudioLevel > 0.05
+                        ? !isSelfMuted &&
+                          isListeningForSound &&
+                          localAudioLevel > 0.05
                         : participant.isSpeaking;
 
                       return (
@@ -553,21 +624,24 @@ export function CollaborationPanel({
                             "group flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition-all duration-200",
                             isActiveSpeaker
                               ? "bg-emerald-500/10 border-emerald-500/20"
-                              : "hover:bg-white/5 border-transparent"
+                              : "hover:bg-white/5 border-transparent",
                           )}
                         >
                           <div className="flex min-w-0 flex-1 items-center gap-3">
                             <div className="relative">
-                              <Avatar 
+                              <Avatar
                                 className={cn(
                                   "h-9 w-9 ring-2 transition-all duration-200",
-                                  isActiveSpeaker 
-                                    ? "ring-emerald-500 ring-offset-2 ring-offset-[#0F111A]" 
+                                  isActiveSpeaker
+                                    ? "ring-emerald-500 ring-offset-2 ring-offset-[#0F111A]"
                                     : "ring-transparent",
-                                  isMuted && "opacity-60"
+                                  isMuted && "opacity-60",
                                 )}
                               >
-                                <AvatarImage src={participant.image ?? undefined} alt={participant.name} />
+                                <AvatarImage
+                                  src={participant.image ?? undefined}
+                                  alt={participant.name}
+                                />
                                 <AvatarFallback className="bg-[#2B2D31] text-white">
                                   {getInitials(participant.name)}
                                 </AvatarFallback>
@@ -586,10 +660,14 @@ export function CollaborationPanel({
 
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5">
-                                <span className={cn(
-                                  "truncate text-[13px] font-semibold",
-                                  isActiveSpeaker ? "text-white" : "text-zinc-300"
-                                )}>
+                                <span
+                                  className={cn(
+                                    "truncate text-[13px] font-semibold",
+                                    isActiveSpeaker
+                                      ? "text-white"
+                                      : "text-zinc-300",
+                                  )}
+                                >
                                   {participant.name}
                                 </span>
                                 {isCurrentUser && (
@@ -599,7 +677,11 @@ export function CollaborationPanel({
                                 )}
                               </div>
                               <span className="truncate text-[11px] font-medium text-zinc-500">
-                                {isActiveSpeaker ? "Speaking..." : isMuted ? "Muted" : "Idle"}
+                                {isActiveSpeaker
+                                  ? "Speaking..."
+                                  : isMuted
+                                    ? "Muted"
+                                    : "Idle"}
                               </span>
                             </div>
                           </div>
@@ -609,10 +691,10 @@ export function CollaborationPanel({
                               {[0, 1, 2].map((i) => {
                                 // For current user, we can use localAudioLevel to drive it somewhat
                                 // For remote users, we just use a CSS animation
-                                const barHeight = isCurrentUser 
-                                  ? `${Math.max(20, Math.min(100, localAudioLevel * 200 + i * 10))}%` 
+                                const barHeight = isCurrentUser
+                                  ? `${Math.max(20, Math.min(100, localAudioLevel * 200 + i * 10))}%`
                                   : "100%";
-                                
+
                                 return (
                                   <div
                                     key={i}
@@ -622,7 +704,7 @@ export function CollaborationPanel({
                                       animationDuration: `${0.4 + i * 0.15}s`,
                                       animationDelay: `${i * 0.1}s`,
                                       animationDirection: "alternate",
-                                      animationIterationCount: "infinite"
+                                      animationIterationCount: "infinite",
                                     }}
                                   />
                                 );
@@ -637,12 +719,17 @@ export function CollaborationPanel({
                       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/5">
                         <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
                       </div>
-                      <p className="text-sm font-medium text-zinc-400">Connecting to Voice...</p>
+                      <p className="text-sm font-medium text-zinc-400">
+                        Connecting to Voice...
+                      </p>
                     </div>
                   )}
                 </div>
                 {remoteAudio.map((item) => (
-                  <AudioPlayer key={item.participant.socketId} stream={item.stream} />
+                  <AudioPlayer
+                    key={item.participant.socketId}
+                    stream={item.stream}
+                  />
                 ))}
               </ScrollArea>
             </>
@@ -654,9 +741,12 @@ export function CollaborationPanel({
                     <Mic className="h-8 w-8 text-emerald-500" />
                   </div>
                 </div>
-                <h3 className="text-center text-lg font-bold text-white">Join Workspace Voice</h3>
+                <h3 className="text-center text-lg font-bold text-white">
+                  Join Workspace Voice
+                </h3>
                 <p className="mt-2 text-center text-sm text-zinc-400">
-                  Jump in to hear your teammates and collaborate in real-time. (Discord-style huddle)
+                  Jump in to hear your teammates and collaborate in real-time.
+                  (Discord-style huddle)
                 </p>
                 {voiceError ? (
                   <div className="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
@@ -683,7 +773,10 @@ export function CollaborationPanel({
           )}
         </TabsContent>
 
-        <TabsContent value="activity" className="mt-0 flex h-full flex-col data-[state=inactive]:hidden">
+        <TabsContent
+          value="activity"
+          className="mt-0 flex h-full flex-col data-[state=inactive]:hidden"
+        >
           <ScrollArea className="ide-scrollbar min-h-0 flex-1 px-4 py-4">
             <div className="space-y-3">
               {activities.length ? (
@@ -700,15 +793,20 @@ export function CollaborationPanel({
                         })}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm leading-6 text-white">{activityItem.message}</p>
+                    <p className="mt-1 text-sm leading-6 text-white">
+                      {activityItem.message}
+                    </p>
                     {activityItem.filePath ? (
-                      <p className="mt-2 text-xs text-emerald-200/75">{activityItem.filePath}</p>
+                      <p className="mt-2 text-xs text-emerald-200/75">
+                        {activityItem.filePath}
+                      </p>
                     ) : null}
                   </div>
                 ))
               ) : (
                 <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm text-white/50">
-                  Activity will appear here as collaborators join, push files, and sync changes.
+                  Activity will appear here as collaborators join, push files,
+                  and sync changes.
                 </div>
               )}
             </div>
