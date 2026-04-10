@@ -116,39 +116,39 @@ export function PlaygroundEditor({
         </Button>
       </div>
 
-      <div className="flex flex-shrink-0 flex-col gap-3 border-b border-white/10 bg-[#0b1120] px-4 py-3 xl:flex-row xl:items-start xl:justify-between">
+      <div className="flex flex-shrink-0 flex-wrap gap-3 border-b border-white/10 bg-[#0b1120] px-4 py-3 justify-between items-start transition-all duration-200 ease-in-out">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate text-sm font-medium text-white">
+            <p className="truncate max-w-full text-sm font-medium text-white">
               {activeFile?.name ?? "No file selected"}
             </p>
             {activeTab?.isDirty ? (
-              <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2 py-0.5 text-[11px] text-amber-200">
+              <span className="max-w-full truncate rounded-full border border-amber-300/20 bg-amber-300/10 px-2 py-0.5 text-[11px] text-amber-200">
                 Unsaved
               </span>
             ) : activeFile ? (
-              <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2 py-0.5 text-[11px] text-emerald-200">
+              <span className="max-w-full truncate rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2 py-0.5 text-[11px] text-emerald-200">
                 Saved
               </span>
             ) : null}
             {isReadOnly && activeFile ? (
-              <span className="rounded-full border border-red-400/20 bg-red-400/10 px-2 py-0.5 text-[11px] text-red-100">
+              <span className="max-w-full truncate rounded-full border border-red-400/20 bg-red-400/10 px-2 py-0.5 text-[11px] text-red-100">
                 Read only
               </span>
             ) : null}
             {activeFileAssigneeName ? (
-              <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-2 py-0.5 text-[11px] text-sky-100">
+              <span className="max-w-full truncate overflow-hidden whitespace-nowrap text-ellipsis rounded-full border border-sky-300/20 bg-sky-300/10 px-2 py-0.5 text-[11px] text-sky-100">
                 Assigned to {activeFileAssigneeName}
               </span>
             ) : null}
           </div>
-          <p className="truncate text-xs text-white/45">
+          <p className="truncate text-xs text-white/45 mt-1">
             {activeFile?.path ?? "Choose a file from the explorer to begin editing."}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <span
               className={cn(
-                "rounded-full border px-2 py-0.5 text-[11px]",
+                "max-w-full truncate overflow-hidden whitespace-nowrap text-ellipsis rounded-full border px-2 py-0.5 text-[11px]",
                 workspaceStatusTone === "success"
                   ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200"
                   : workspaceStatusTone === "warning"
@@ -159,7 +159,7 @@ export function PlaygroundEditor({
               {workspaceStatusLabel}
             </span>
             {activeCollaboratorNames.length ? (
-              <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2 py-0.5 text-[11px] text-amber-100">
+              <span className="max-w-full truncate overflow-hidden whitespace-nowrap text-ellipsis rounded-full border border-amber-300/20 bg-amber-300/10 px-2 py-0.5 text-[11px] text-amber-100">
                 {activeCollaboratorNames.join(", ")} already active here
               </span>
             ) : null}

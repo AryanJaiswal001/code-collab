@@ -6,6 +6,8 @@ import {
   Activity,
   BadgeCheck,
   Copy,
+  Loader2,
+  LogOut,
   MailPlus,
   MessageSquare,
   Mic,
@@ -14,6 +16,7 @@ import {
   Shield,
   UserMinus,
   Users,
+  Volume2,
 } from "lucide-react";
 import type {
   WorkspaceActivity,
@@ -426,31 +429,32 @@ export function CollaborationPanel({
                 Invite Access
               </p>
               <div className="mt-3 space-y-3">
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={cn("flex-1", secondaryButtonClass)}
-                    onClick={onCreateInviteLink}
-                  >
-                    <Copy className="mr-2 h-4 w-4" />
-                    Generate Link
-                  </Button>
-                  {latestInviteUrl ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn("w-full", secondaryButtonClass)}
+                  onClick={onCreateInviteLink}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Generate Link
+                </Button>
+                {latestInviteUrl ? (
+                  <div className="flex items-center justify-between gap-2 max-w-full overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-1.5">
+                    <div className="flex-1 min-w-0 px-2 text-xs text-white/60">
+                      <p className="truncate" title={latestInviteUrl}>
+                        {latestInviteUrl}
+                      </p>
+                    </div>
                     <Button
                       type="button"
-                      variant="outline"
-                      className={secondaryButtonClass}
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0 h-7 px-2.5 text-xs text-white hover:bg-white/10"
                       onClick={() => navigator.clipboard.writeText(latestInviteUrl)}
                     >
                       Copy
                     </Button>
-                  ) : null}
-                </div>
-                {latestInviteUrl ? (
-                  <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/60">
-                    {latestInviteUrl}
-                  </p>
+                  </div>
                 ) : null}
 
                 <Input
@@ -473,53 +477,57 @@ export function CollaborationPanel({
           ) : null}
         </TabsContent>
 
-        <TabsContent value="voice" className="mt-0 flex h-full flex-col data-[state=inactive]:hidden">
+        <TabsContent value="voice" className="mt-0 flex h-full flex-col data-[state=inactive]:hidden bg-[#0F111A]">
           {isVoiceJoined ? (
             <>
-              <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/45">
-                    Voice
-                  </p>
-                  <p className="text-sm text-white/70">
-                    {voiceParticipants.length} participant
-                    {voiceParticipants.length === 1 ? "" : "s"} in call
-                  </p>
+              <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-white/5 bg-[#171A21] px-4 py-3">
+                <div className="min-w-0 flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
+                    <Volume2 className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-white tracking-tight">Voice Channel</h2>
+                    <p className="text-xs font-medium text-emerald-400">
+                      {voiceParticipants.length} connected
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex flex-shrink-0 items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
-                    className={secondaryButtonClass}
+                    className="h-8 border-white/10 bg-white/5 hover:bg-white/10 text-white"
                     onClick={onToggleSelfMuted}
                   >
                     {isSelfMuted ? (
-                      <Mic className="h-4 w-4" />
+                      <MicOff className="h-4 w-4 text-red-400 mr-1.5" />
                     ) : (
-                      <MicOff className="h-4 w-4" />
+                      <Mic className="h-4 w-4 text-emerald-400 mr-1.5" />
                     )}
                     {isSelfMuted ? "Unmute" : "Mute"}
                   </Button>
                   <Button
                     type="button"
-                    className={primaryButtonClass}
+                    variant="ghost"
+                    className="h-8 border border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300"
                     onClick={onLeaveVoice}
                   >
-                    Leave
+                    <LogOut className="h-4 w-4 mr-1.5" />
+                    Disconnect
                   </Button>
                 </div>
               </div>
 
               {voiceError ? (
-                <div className="mx-4 mt-3 rounded-2xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-100">
+                <div className="mx-4 mt-3 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
                   <div className="flex items-center justify-between gap-3">
-                    <span>{voiceError}</span>
+                    <span className="flex-1 truncate">{voiceError}</span>
                     <Button
                       type="button"
                       size="sm"
                       variant="ghost"
-                      className="text-red-100 hover:bg-red-400/10 hover:text-white"
+                      className="h-6 px-2 text-red-300 hover:bg-red-500/20 hover:text-white"
                       onClick={onClearVoiceError}
                     >
                       Dismiss
@@ -529,87 +537,107 @@ export function CollaborationPanel({
               ) : null}
 
               <ScrollArea className="ide-scrollbar min-h-0 flex-1 px-4 py-4">
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 gap-2">
                   {voiceParticipants.length ? (
                     voiceParticipants.map((participant) => {
                       const isCurrentUser = participant.userId === currentUser.userId;
+                      const isMuted = isCurrentUser ? isSelfMuted : participant.isVoiceMuted;
                       const isActiveSpeaker = isCurrentUser
-                        ? !isSelfMuted && isListeningForSound && localAudioLevel > 0.12
+                        ? !isSelfMuted && isListeningForSound && localAudioLevel > 0.05
                         : participant.isSpeaking;
-                      const activeBars = isCurrentUser
-                        ? Math.max(1, Math.round(localAudioLevel * 5))
-                        : participant.isSpeaking
-                          ? 4
-                          : 1;
 
                       return (
                         <div
                           key={participant.socketId}
                           className={cn(
-                            "flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-all duration-200",
+                            "group flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition-all duration-200",
                             isActiveSpeaker
-                              ? "border-emerald-400/25 bg-emerald-400/10"
-                              : "border-white/10 bg-white/[0.03]",
+                              ? "bg-emerald-500/10 border-emerald-500/20"
+                              : "hover:bg-white/5 border-transparent"
                           )}
                         >
-                          <Avatar className="h-9 w-9 border border-white/10">
-                            <AvatarImage src={participant.image ?? undefined} alt={participant.name} />
-                            <AvatarFallback>{getInitials(participant.name)}</AvatarFallback>
-                          </Avatar>
-
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="truncate text-sm font-medium text-white">
-                                {participant.name}
-                              </p>
-                              {isCurrentUser ? (
-                                <Badge
-                                  variant="outline"
-                                  className="border-sky-300/20 bg-sky-300/10 text-sky-100"
-                                >
-                                  You
-                                </Badge>
-                              ) : null}
-                              {participant.isMutedByModerator ? (
-                                <Badge
-                                  variant="outline"
-                                  className="border-red-400/20 bg-red-400/10 text-red-200"
-                                >
-                                  Voice muted
-                                </Badge>
-                              ) : null}
-                            </div>
-                            <p className="text-xs text-white/45">
-                              {isCurrentUser
-                                ? isSelfMuted
-                                  ? "Muted"
-                                  : isListeningForSound
-                                    ? "Listening"
-                                    : "Connecting mic"
-                                : participant.role}
-                            </p>
-                          </div>
-
-                          <div className="flex items-end gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1.5">
-                            {[0, 1, 2, 3, 4].map((barIndex) => (
-                              <span
-                                key={barIndex}
+                          <div className="flex min-w-0 flex-1 items-center gap-3">
+                            <div className="relative">
+                              <Avatar 
                                 className={cn(
-                                  "w-1 rounded-full transition-all duration-150",
-                                  barIndex < activeBars
-                                    ? "bg-emerald-300"
-                                    : "bg-white/15",
+                                  "h-9 w-9 ring-2 transition-all duration-200",
+                                  isActiveSpeaker 
+                                    ? "ring-emerald-500 ring-offset-2 ring-offset-[#0F111A]" 
+                                    : "ring-transparent",
+                                  isMuted && "opacity-60"
                                 )}
-                                style={{ height: `${8 + (barIndex % 3) * 4}px` }}
-                              />
-                            ))}
+                              >
+                                <AvatarImage src={participant.image ?? undefined} alt={participant.name} />
+                                <AvatarFallback className="bg-[#2B2D31] text-white">
+                                  {getInitials(participant.name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              {isMuted && (
+                                <div className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border border-[#0F111A] bg-zinc-800">
+                                  <MicOff className="h-2.5 w-2.5 text-red-500" />
+                                </div>
+                              )}
+                              {isActiveSpeaker && !isMuted && (
+                                <div className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border border-[#0F111A] bg-emerald-500">
+                                  <div className="h-2 w-2 rounded-full animate-ping bg-white" />
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className={cn(
+                                  "truncate text-[13px] font-semibold",
+                                  isActiveSpeaker ? "text-white" : "text-zinc-300"
+                                )}>
+                                  {participant.name}
+                                </span>
+                                {isCurrentUser && (
+                                  <span className="shrink-0 rounded bg-white/10 px-1 text-[9px] font-bold uppercase text-zinc-400">
+                                    You
+                                  </span>
+                                )}
+                              </div>
+                              <span className="truncate text-[11px] font-medium text-zinc-500">
+                                {isActiveSpeaker ? "Speaking..." : isMuted ? "Muted" : "Idle"}
+                              </span>
+                            </div>
                           </div>
+
+                          {isActiveSpeaker && (
+                            <div className="flex shrink-0 items-end justify-center gap-0.5 h-4 mb-1">
+                              {[0, 1, 2].map((i) => {
+                                // For current user, we can use localAudioLevel to drive it somewhat
+                                // For remote users, we just use a CSS animation
+                                const barHeight = isCurrentUser 
+                                  ? `${Math.max(20, Math.min(100, localAudioLevel * 200 + i * 10))}%` 
+                                  : "100%";
+                                
+                                return (
+                                  <div
+                                    key={i}
+                                    className="w-1 bg-emerald-400 rounded-t-sm animate-pulse"
+                                    style={{
+                                      height: barHeight,
+                                      animationDuration: `${0.4 + i * 0.15}s`,
+                                      animationDelay: `${i * 0.1}s`,
+                                      animationDirection: "alternate",
+                                      animationIterationCount: "infinite"
+                                    }}
+                                  />
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       );
                     })
                   ) : (
-                    <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm text-white/50">
-                      Joining voice...
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/5">
+                        <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
+                      </div>
+                      <p className="text-sm font-medium text-zinc-400">Connecting to Voice...</p>
                     </div>
                   )}
                 </div>
@@ -620,34 +648,35 @@ export function CollaborationPanel({
             </>
           ) : (
             <div className="flex h-full items-center justify-center p-4">
-              <div className="w-full rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                <p className="text-sm font-medium text-white">Workspace Voice</p>
-                <p className="mt-2 text-sm leading-6 text-white/55">
-                  Join the call to hear teammates and see live speaking waveforms.
+              <div className="w-full max-w-sm rounded-xl border border-white/5 bg-[#171A21] p-6 shadow-xl">
+                <div className="mb-6 flex justify-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10">
+                    <Mic className="h-8 w-8 text-emerald-500" />
+                  </div>
+                </div>
+                <h3 className="text-center text-lg font-bold text-white">Join Workspace Voice</h3>
+                <p className="mt-2 text-center text-sm text-zinc-400">
+                  Jump in to hear your teammates and collaborate in real-time. (Discord-style huddle)
                 </p>
                 {voiceError ? (
-                  <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-100">
-                    <div className="flex items-center justify-between gap-3">
-                      <span>{voiceError}</span>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="text-red-100 hover:bg-red-400/10 hover:text-white"
-                        onClick={onClearVoiceError}
-                      >
-                        Dismiss
-                      </Button>
-                    </div>
+                  <div className="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
+                    {voiceError}
                   </div>
                 ) : null}
                 <Button
                   type="button"
-                  className="mt-4 w-full rounded-xl border border-blue-500/40 bg-blue-600 text-white hover:bg-blue-500"
+                  className="mt-6 w-full rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-500 h-10 transition-colors"
                   disabled={isJoiningVoice}
                   onClick={onJoinVoice}
                 >
-                  {isJoiningVoice ? "Joining..." : "Join Voice"}
+                  {isJoiningVoice ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    "Join Voice"
+                  )}
                 </Button>
               </div>
             </div>
