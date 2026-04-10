@@ -4,7 +4,14 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { formatDistanceToNow } from "date-fns";
-import { Loader2, GitPullRequest, CheckCircle2, XCircle, Code, Plus } from "lucide-react";
+import {
+  Loader2,
+  GitPullRequest,
+  CheckCircle2,
+  XCircle,
+  Code,
+  Plus,
+} from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -35,11 +42,11 @@ export type MergeRequest = {
 export function MergeRequestPanel() {
   const { id: workspaceId } = useParams() as { id: string };
   const { data: session } = useSession();
-  
+
   const [mrs, setMrs] = useState<MergeRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [selectedMr, setSelectedMr] = useState<MergeRequest | null>(null);
   const [isMutating, setIsMutating] = useState(false);
 
@@ -70,11 +77,13 @@ export function MergeRequestPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mrId, status: action }),
       });
-      
+
       if (!res.ok) throw new Error(`Failed to ${action.toLowerCase()} MR`);
-      
+
       // Update local state
-      setMrs(prev => prev.map(mr => mr.id === mrId ? { ...mr, status: action } : mr));
+      setMrs((prev) =>
+        prev.map((mr) => (mr.id === mrId ? { ...mr, status: action } : mr)),
+      );
       if (selectedMr?.id === mrId) {
         setSelectedMr({ ...selectedMr, status: action });
       }
@@ -106,9 +115,9 @@ export function MergeRequestPanel() {
     return (
       <div className="flex h-full flex-col min-h-0">
         <div className="flex items-center gap-2 border-b border-white/10 p-3">
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             className="h-8 px-2 text-white/70 hover:text-white"
             onClick={() => setSelectedMr(null)}
           >
@@ -131,12 +140,18 @@ export function MergeRequestPanel() {
                 </Avatar>
                 <span>{selectedMr.author.name}</span>
               </div>
-              <Badge variant="outline" className={cn(
-                "text-[10px] uppercase font-bold",
-                selectedMr.status === "OPEN" && "border-blue-500 text-blue-400",
-                selectedMr.status === "MERGED" && "border-emerald-500 text-emerald-400",
-                selectedMr.status === "REJECTED" && "border-red-500 text-red-400",
-              )}>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-[10px] uppercase font-bold",
+                  selectedMr.status === "OPEN" &&
+                    "border-blue-500 text-blue-400",
+                  selectedMr.status === "MERGED" &&
+                    "border-emerald-500 text-emerald-400",
+                  selectedMr.status === "REJECTED" &&
+                    "border-red-500 text-red-400",
+                )}
+              >
                 {selectedMr.status}
               </Badge>
             </div>
@@ -148,19 +163,28 @@ export function MergeRequestPanel() {
             )}
 
             <div className="space-y-2">
-              <h4 className="text-xs font-semibold text-white/60 uppercase tracking-wider">Changes</h4>
+              <h4 className="text-xs font-semibold text-white/60 uppercase tracking-wider">
+                Changes
+              </h4>
               <div className="rounded-md border border-white/10 bg-[#0d0d0d] overflow-hidden">
                 {selectedMr.changes && Array.isArray(selectedMr.changes) ? (
                   selectedMr.changes.map((change: any, i: number) => (
-                    <div key={i} className="border-b border-white/5 last:border-0 p-3 text-xs font-mono">
-                      <div className="text-white/60 mb-2 truncate font-bold">{change.filePath}</div>
+                    <div
+                      key={i}
+                      className="border-b border-white/5 last:border-0 p-3 text-xs font-mono"
+                    >
+                      <div className="text-white/60 mb-2 truncate font-bold">
+                        {change.filePath}
+                      </div>
                       <div className="whitespace-pre-wrap overflow-x-auto text-white/80">
                         {change.patch}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="p-3 text-xs text-white/50">No parsable patch data</div>
+                  <div className="p-3 text-xs text-white/50">
+                    No parsable patch data
+                  </div>
                 )}
               </div>
             </div>
@@ -169,22 +193,30 @@ export function MergeRequestPanel() {
 
         {selectedMr.status === "OPEN" && (
           <div className="border-t border-white/10 p-3 flex gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="flex-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
               disabled={isMutating}
               onClick={() => handleAction(selectedMr.id, "MERGED")}
             >
-              {isMutating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+              {isMutating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+              )}
               Merge
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="flex-1 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
               disabled={isMutating}
               onClick={() => handleAction(selectedMr.id, "REJECTED")}
             >
-              {isMutating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+              {isMutating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <XCircle className="mr-2 h-4 w-4" />
+              )}
               Reject
             </Button>
           </div>
@@ -193,8 +225,8 @@ export function MergeRequestPanel() {
     );
   }
 
-  const openMrs = mrs.filter(m => m.status === "OPEN");
-  const closedMrs = mrs.filter(m => m.status !== "OPEN");
+  const openMrs = mrs.filter((m) => m.status === "OPEN");
+  const closedMrs = mrs.filter((m) => m.status !== "OPEN");
 
   return (
     <ScrollArea className="flex-1 h-full px-3 py-4">
@@ -204,17 +236,23 @@ export function MergeRequestPanel() {
             <GitPullRequest className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-white/60">No Merge Requests</p>
-            <p className="text-xs">When collaborators push files, they will appear here for review.</p>
+            <p className="text-sm font-medium text-white/60">
+              No Merge Requests
+            </p>
+            <p className="text-xs">
+              When collaborators push files, they will appear here for review.
+            </p>
           </div>
         </div>
       ) : (
         <div className="space-y-6">
           {openMrs.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider px-1">Requires Review</h3>
+              <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider px-1">
+                Requires Review
+              </h3>
               <div className="space-y-2">
-                {openMrs.map(mr => (
+                {openMrs.map((mr) => (
                   <button
                     key={mr.id}
                     onClick={() => setSelectedMr(mr)}
@@ -224,11 +262,17 @@ export function MergeRequestPanel() {
                       <div className="flex gap-2">
                         <GitPullRequest className="mt-0.5 h-4 w-4 text-blue-400 shrink-0" />
                         <div>
-                          <div className="text-sm font-medium text-white/90 line-clamp-1">{mr.title}</div>
+                          <div className="text-sm font-medium text-white/90 line-clamp-1">
+                            {mr.title}
+                          </div>
                           <div className="mt-1 flex items-center gap-2 text-xs text-white/50">
                             <span>{mr.author.name}</span>
                             <span>•</span>
-                            <span>{formatDistanceToNow(new Date(mr.createdAt), { addSuffix: true })}</span>
+                            <span>
+                              {formatDistanceToNow(new Date(mr.createdAt), {
+                                addSuffix: true,
+                              })}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -241,9 +285,11 @@ export function MergeRequestPanel() {
 
           {closedMrs.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider px-1">History</h3>
+              <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider px-1">
+                History
+              </h3>
               <div className="space-y-2">
-                {closedMrs.map(mr => (
+                {closedMrs.map((mr) => (
                   <button
                     key={mr.id}
                     onClick={() => setSelectedMr(mr)}
@@ -256,9 +302,13 @@ export function MergeRequestPanel() {
                         <XCircle className="mt-0.5 h-4 w-4 text-red-500/70 shrink-0" />
                       )}
                       <div>
-                        <div className="text-sm font-medium text-white/70 line-clamp-1">{mr.title}</div>
+                        <div className="text-sm font-medium text-white/70 line-clamp-1">
+                          {mr.title}
+                        </div>
                         <div className="mt-1 text-xs text-white/40">
-                          {formatDistanceToNow(new Date(mr.createdAt), { addSuffix: true })}
+                          {formatDistanceToNow(new Date(mr.createdAt), {
+                            addSuffix: true,
+                          })}
                         </div>
                       </div>
                     </div>

@@ -126,13 +126,16 @@ export async function PUT(
       const { path, newContent } = mr.changes as any;
 
       if (!path || newContent === undefined) {
-        return NextResponse.json({ error: "Invalid patch data" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Invalid patch data" },
+          { status: 400 },
+        );
       }
-      
-      const pathParts = path.split('/');
+
+      const pathParts = path.split("/");
       const name = pathParts.pop() || path;
-      const parentPath = pathParts.length > 0 ? pathParts.join('/') : null;
-      const fileExtension = name.includes('.') ? name.split('.').pop() : null;
+      const parentPath = pathParts.length > 0 ? pathParts.join("/") : null;
+      const fileExtension = name.includes(".") ? name.split(".").pop() : null;
 
       // Update or create the actual playground entry
       await prisma.playgroundEntry.upsert({
@@ -172,4 +175,3 @@ export async function PUT(
     );
   }
 }
-

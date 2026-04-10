@@ -66,7 +66,9 @@ type CollaborationPanelProps = {
   latestInviteUrl: string | null;
   isSendingInvites: boolean;
   memberActionInFlightId: string | null;
-  onTabChange: (tab: "chat" | "members" | "voice" | "activity" | "merge-requests") => void;
+  onTabChange: (
+    tab: "chat" | "members" | "voice" | "activity" | "merge-requests",
+  ) => void;
   onChatDraftChange: (value: string) => void;
   onSendChat: () => void;
   onJoinVoice: () => void;

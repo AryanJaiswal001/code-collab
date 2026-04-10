@@ -1173,7 +1173,6 @@ export function WorkspacePlaygroundShell({
       }
     };
 
-
     const handleUserJoined = (payload: WorkspaceUserJoinedEvent) => {
       if (payload.workspaceId !== snapshot.id) {
         return;
