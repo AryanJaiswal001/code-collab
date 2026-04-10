@@ -121,7 +121,7 @@ export async function PUT(
     // Only owner or authorized roles can approve, but for now we let any member.
     // In a real system, you'd check roles.
 
-    if (status === "MERGED") {
+    if (status === "APPROVED") {
       // Extract the new content and path from the changes we stored
       const { path, newContent } = mr.changes as any;
 

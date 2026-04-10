@@ -20,7 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 // Types corresponding to our DB schema
-export type MergeRequestStatus = "OPEN" | "MERGED" | "REJECTED";
+export type MergeRequestStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export type MergeRequest = {
   id: string;
@@ -69,7 +69,7 @@ export function MergeRequestPanel() {
     fetchMrs();
   }, [workspaceId]);
 
-  const handleAction = async (mrId: string, action: "MERGED" | "REJECTED") => {
+  const handleAction = async (mrId: string, action: "APPROVED" | "REJECTED") => {
     try {
       setIsMutating(true);
       const res = await fetch(`/api/workspaces/${workspaceId}/merge-requests`, {
@@ -144,12 +144,9 @@ export function MergeRequestPanel() {
                 variant="outline"
                 className={cn(
                   "text-[10px] uppercase font-bold",
-                  selectedMr.status === "OPEN" &&
-                    "border-blue-500 text-blue-400",
-                  selectedMr.status === "MERGED" &&
-                    "border-emerald-500 text-emerald-400",
-                  selectedMr.status === "REJECTED" &&
-                    "border-red-500 text-red-400",
+                    selectedMr.status === "PENDING" &&
+                      "border-blue-500 text-blue-400",
+                    selectedMr.status === "APPROVED" &&
                 )}
               >
                 {selectedMr.status}
@@ -191,13 +188,13 @@ export function MergeRequestPanel() {
           </div>
         </ScrollArea>
 
-        {selectedMr.status === "OPEN" && (
+        {selectedMr.status === "PENDING" && (
           <div className="border-t border-white/10 p-3 flex gap-2">
             <Button
               variant="outline"
               className="flex-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
               disabled={isMutating}
-              onClick={() => handleAction(selectedMr.id, "MERGED")}
+              onClick={() => handleAction(selectedMr.id, "APPROVED")}
             >
               {isMutating ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -225,8 +222,8 @@ export function MergeRequestPanel() {
     );
   }
 
-  const openMrs = mrs.filter((m) => m.status === "OPEN");
-  const closedMrs = mrs.filter((m) => m.status !== "OPEN");
+  const openMrs = mrs.filter((m) => m.status === "PENDING");
+  const closedMrs = mrs.filter((m) => m.status !== "PENDING");
 
   return (
     <ScrollArea className="flex-1 h-full px-3 py-4">
@@ -296,7 +293,7 @@ export function MergeRequestPanel() {
                     className="w-full text-left rounded-xl border border-white/5 bg-white/[0.02] p-3 transition hover:bg-white/[0.04]"
                   >
                     <div className="flex gap-2">
-                      {mr.status === "MERGED" ? (
+                      {mr.status === "APPROVED" ? (
                         <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500/70 shrink-0" />
                       ) : (
                         <XCircle className="mt-0.5 h-4 w-4 text-red-500/70 shrink-0" />
