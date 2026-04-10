@@ -286,8 +286,9 @@ export function WorkspacePlaygroundShell({
   const [pendingWorkspaceUpdate, setPendingWorkspaceUpdate] =
     useState<PendingWorkspaceUpdate | null>(null);
   const [activePanelTab, setActivePanelTab] = useState<
-    "chat" | "members" | "voice" | "activity"
+    "chat" | "members" | "voice" | "activity" | "merge-requests"
   >("chat");
+  const [unreadMergeRequestsCount, setUnreadMergeRequestsCount] = useState(0);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [unreadActivityCount, setUnreadActivityCount] = useState(0);
   const [chatDraft, setChatDraft] = useState("");
@@ -1166,6 +1167,13 @@ export function WorkspacePlaygroundShell({
       }
     };
 
+    const handleMergeRequestNew = () => {
+      if (activePanelTab !== "merge-requests") {
+        setUnreadMergeRequestsCount((currentCount) => currentCount + 1);
+      }
+    };
+
+
     const handleUserJoined = (payload: WorkspaceUserJoinedEvent) => {
       if (payload.workspaceId !== snapshot.id) {
         return;
@@ -1220,6 +1228,7 @@ export function WorkspacePlaygroundShell({
     socket.on("workspace:tree-updated", handleTreeUpdate);
     socket.on("workspace:chat:new", handleChat);
     socket.on("workspace:activity:new", handleActivity);
+    socket.on("merge-request:new", handleMergeRequestNew);
     socket.on("user-joined", handleUserJoined);
     socket.on("workspace:members-changed", handleMembersChanged);
 
@@ -1233,6 +1242,7 @@ export function WorkspacePlaygroundShell({
       socket.off("workspace:tree-updated", handleTreeUpdate);
       socket.off("workspace:chat:new", handleChat);
       socket.off("workspace:activity:new", handleActivity);
+      socket.off("merge-request:new", handleMergeRequestNew);
       socket.off("user-joined", handleUserJoined);
       socket.off("workspace:members-changed", handleMembersChanged);
     };
@@ -1263,6 +1273,10 @@ export function WorkspacePlaygroundShell({
 
     if (activePanelTab === "activity") {
       setUnreadActivityCount(0);
+    }
+
+    if (activePanelTab === "merge-requests") {
+      setUnreadMergeRequestsCount(0);
     }
   }, [activePanelTab]);
 
@@ -1434,6 +1448,7 @@ export function WorkspacePlaygroundShell({
       activeTab={activePanelTab}
       unreadChatCount={unreadChatCount}
       unreadActivityCount={unreadActivityCount}
+      unreadMergeRequestsCount={unreadMergeRequestsCount}
       currentUser={currentUser}
       members={members}
       presence={presence}

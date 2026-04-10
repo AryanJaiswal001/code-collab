@@ -95,3 +95,81 @@ export async function GET(
     return NextResponse.json({ error: "Failed to get MRs" }, { status: 500 });
   }
 }
+
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ workspaceId: string }> },
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const workspaceId = (await params).workspaceId;
+    const body = await request.json();
+    const { mrId, status } = body;
+
+    const mr = await prisma.mergeRequest.findUnique({
+      where: { id: mrId, playgroundId: workspaceId },
+    });
+
+    if (!mr) {
+      return NextResponse.json({ error: "MR not found" }, { status: 404 });
+    }
+
+    // Only owner or authorized roles can approve, but for now we let any member.
+    // In a real system, you'd check roles.
+
+    if (status === "MERGED") {
+      // Extract the new content and path from the changes we stored
+      const { path, newContent } = mr.changes as any;
+
+      if (!path || newContent === undefined) {
+        return NextResponse.json({ error: "Invalid patch data" }, { status: 400 });
+      }
+      
+      const pathParts = path.split('/');
+      const name = pathParts.pop() || path;
+      const parentPath = pathParts.length > 0 ? pathParts.join('/') : null;
+      const fileExtension = name.includes('.') ? name.split('.').pop() : null;
+
+      // Update or create the actual playground entry
+      await prisma.playgroundEntry.upsert({
+        where: {
+          playgroundId_path: {
+            playgroundId: workspaceId,
+            path,
+          },
+        },
+        create: {
+          playgroundId: workspaceId,
+          path,
+          name,
+          parentPath,
+          fileExtension,
+          content: newContent,
+          type: "FILE",
+        },
+        update: {
+          content: newContent,
+          updatedAt: new Date(),
+        },
+      });
+    }
+
+    const updatedMr = await prisma.mergeRequest.update({
+      where: { id: mrId },
+      data: { status },
+    });
+
+    return NextResponse.json(updatedMr);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { error: "Failed to update merge request" },
+      { status: 500 },
+    );
+  }
+}
+

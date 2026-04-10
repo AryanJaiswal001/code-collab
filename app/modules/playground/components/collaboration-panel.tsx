@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Mic,
   MicOff,
+  GitPullRequest,
   Radio,
   Shield,
   UserMinus,
@@ -34,6 +35,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { MergeRequestPanel } from "./merge-request-panel";
 
 type RemoteAudioState = {
   participant: WorkspaceVoiceParticipant;
@@ -41,9 +43,10 @@ type RemoteAudioState = {
 };
 
 type CollaborationPanelProps = {
-  activeTab: "chat" | "members" | "voice" | "activity";
+  activeTab: "chat" | "members" | "voice" | "activity" | "merge-requests";
   unreadChatCount: number;
   unreadActivityCount: number;
+  unreadMergeRequestsCount?: number;
   currentUser: WorkspaceCurrentUser;
   members: WorkspaceMember[];
   presence: WorkspacePresence[];
@@ -63,7 +66,7 @@ type CollaborationPanelProps = {
   latestInviteUrl: string | null;
   isSendingInvites: boolean;
   memberActionInFlightId: string | null;
-  onTabChange: (tab: "chat" | "members" | "voice" | "activity") => void;
+  onTabChange: (tab: "chat" | "members" | "voice" | "activity" | "merge-requests") => void;
   onChatDraftChange: (value: string) => void;
   onSendChat: () => void;
   onJoinVoice: () => void;
@@ -107,6 +110,7 @@ export function CollaborationPanel({
   activeTab,
   unreadChatCount,
   unreadActivityCount,
+  unreadMergeRequestsCount,
   currentUser,
   members,
   presence,
@@ -201,7 +205,7 @@ export function CollaborationPanel({
         className="min-h-0 flex-1"
       >
         <div className="border-b border-white/10 px-3 py-3">
-          <TabsList className="grid w-full grid-cols-4 gap-1 rounded-xl bg-white/5 p-1">
+          <TabsList className="grid w-full grid-cols-5 gap-1 rounded-xl bg-white/5 p-1">
             <TabsTrigger
               value="chat"
               className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs"
@@ -243,6 +247,21 @@ export function CollaborationPanel({
                   className="ml-1 px-1.5 py-0 text-[10px]"
                 >
                   {unreadActivityCount}
+                </Badge>
+              ) : null}
+            </TabsTrigger>
+            <TabsTrigger
+              value="merge-requests"
+              className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs"
+            >
+              <GitPullRequest className="h-4 w-4" />
+              MRs
+              {unreadMergeRequestsCount ? (
+                <Badge
+                  variant="secondary"
+                  className="ml-1 px-1.5 py-0 text-[10px]"
+                >
+                  {unreadMergeRequestsCount}
                 </Badge>
               ) : null}
             </TabsTrigger>
@@ -811,6 +830,12 @@ export function CollaborationPanel({
               )}
             </div>
           </ScrollArea>
+        </TabsContent>
+        <TabsContent
+          value="merge-requests"
+          className="mt-0 flex h-full flex-col data-[state=inactive]:hidden"
+        >
+          <MergeRequestPanel />
         </TabsContent>
       </Tabs>
     </aside>
