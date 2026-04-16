@@ -1,15 +1,12 @@
 "use client";
 
-import { formatDistanceToNow } from "date-fns";
 import type {
   WorkspaceChatMessage,
   WorkspaceCurrentUser,
 } from "@/app/modules/workspaces/types";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { CommsCard } from "./CommsCard";
 
 type CommsPanelProps = {
   currentUser: WorkspaceCurrentUser;
@@ -19,15 +16,6 @@ type CommsPanelProps = {
   onChatDraftChange: (value: string) => void;
   onSendChat: () => void;
 };
-
-function getInitials(value: string) {
-  return value
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((chunk) => chunk[0]?.toUpperCase() ?? "")
-    .join("");
-}
 
 export function CommsPanel({
   currentUser,
@@ -39,63 +27,25 @@ export function CommsPanel({
 }: CommsPanelProps) {
   return (
     <>
-      <ScrollArea className="ide-scrollbar min-h-0 flex-1 px-4 py-4">
+      <div className="min-h-0 flex-1 overflow-hidden px-4 py-4">
         {chatMessages.length ? (
-          <div className="space-y-3">
-            <div className="overflow-x-auto pb-2">
-              <div className="flex gap-3 whitespace-nowrap">
-                {chatMessages.map((message) => {
-                  const isSelf = message.author.userId === currentUser.userId;
-
-                  return (
-                    <div
-                      key={message.id}
-                      className={cn(
-                        "min-w-[250px] max-w-[320px] rounded-lg border p-3 text-sm whitespace-normal",
-                        isSelf
-                          ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-50"
-                          : "border-white/10 bg-white/[0.04] text-white",
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-7 w-7 border border-white/10">
-                          <AvatarImage
-                            src={message.author.image ?? undefined}
-                            alt={message.author.name}
-                          />
-                          <AvatarFallback>
-                            {getInitials(message.author.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-medium text-white">
-                            {isSelf ? "You" : message.author.name}
-                          </p>
-                          <p className="truncate text-[11px] text-white/45">
-                            {formatDistanceToNow(
-                              new Date(message.createdAt),
-                              {
-                                addSuffix: true,
-                              },
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                      <p className="mt-3 whitespace-pre-wrap leading-6">
-                        {message.content}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
+          <div className="w-full max-w-full overflow-x-auto scroll-smooth pb-3">
+            <div className="flex min-w-max flex-nowrap gap-3 whitespace-nowrap">
+              {chatMessages.map((message) => (
+                <CommsCard
+                  key={message.id}
+                  message={message}
+                  currentUser={currentUser}
+                />
+              ))}
             </div>
           </div>
         ) : (
           <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm text-white/50">
-            Start the conversation for this workspace.
+            No messages yet
           </div>
         )}
-      </ScrollArea>
+      </div>
 
       <div className="border-t border-white/10 p-4">
         <Textarea
@@ -116,4 +66,3 @@ export function CommsPanel({
     </>
   );
 }
-

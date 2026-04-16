@@ -30,7 +30,7 @@ export function MRItem({ mergeRequest, isSelected, onSelect }: MRItemProps) {
       type="button"
       onClick={() => onSelect(mergeRequest)}
       className={cn(
-        "w-full rounded-lg border p-3 text-left transition duration-150",
+        "w-full min-w-0 rounded-lg border p-3 text-left transition duration-150",
         "hover:border-white/20 hover:bg-white/[0.07]",
         isSelected
           ? "border-sky-400/35 bg-sky-400/10"
@@ -73,7 +73,12 @@ export function MRItem({ mergeRequest, isSelected, onSelect }: MRItemProps) {
         {mergeRequest.changes[0] ? (
           <>
             <span>.</span>
-            <span className="truncate">{mergeRequest.changes[0].path}</span>
+            <span
+              className="min-w-0 truncate"
+              title={mergeRequest.changes[0].path}
+            >
+              {mergeRequest.changes[0].path}
+            </span>
           </>
         ) : null}
       </div>
