@@ -2,66 +2,213 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import * as diff from "diff";
+import {
+  emitWorkspaceMergeRequestChanged,
+  emitWorkspaceTreeUpdate,
+} from "@/lib/collaboration/realtime";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+type MergeRequestRouteContext = {
+  params: Promise<{ workspaceId: string }>;
+};
+
+type MergeRequestAccess = {
+  playground: {
+    id: string;
+    workspaceLink: string;
+    ownerId: string;
+  };
+  user: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    image: string | null;
+  };
+  role: "OWNER" | "ADMIN" | "MEMBER";
+};
+
+const mergeRequestAuthorInclude = {
+  author: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      image: true,
+    },
+  },
+};
+
+function getActorName(user: { name: string | null; email: string | null }) {
+  return user.name?.trim() || user.email?.split("@")[0] || "Collaborator";
+}
+
+function getErrorMessage(payload: unknown, fallback: string) {
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "error" in payload &&
+    typeof payload.error === "string" &&
+    payload.error
+  ) {
+    return payload.error;
+  }
+
+  return fallback;
+}
+
+async function getMergeRequestAccess(
+  workspaceLink: string,
+): Promise<MergeRequestAccess | NextResponse> {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const playground = await prisma.playground.findUnique({
+    where: {
+      workspaceLink,
+    },
+    select: {
+      id: true,
+      workspaceLink: true,
+      ownerId: true,
+    },
+  });
+
+  if (!playground) {
+    return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+  }
+
+  const member = await prisma.playgroundMember.findFirst({
+    where: {
+      playgroundId: playground.id,
+      userId: session.user.id,
+    },
+    select: {
+      role: true,
+    },
+  });
+
+  if (!member && playground.ownerId !== session.user.id) {
+    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  }
+
+  return {
+    playground,
+    user: {
+      id: session.user.id,
+      name: session.user.name ?? null,
+      email: session.user.email ?? null,
+      image: session.user.image ?? null,
+    },
+    role:
+      playground.ownerId === session.user.id
+        ? "OWNER"
+        : (member?.role ?? "MEMBER"),
+  };
+}
+
+function isAccessResponse(
+  value: MergeRequestAccess | NextResponse,
+): value is NextResponse {
+  return value instanceof NextResponse;
+}
+
+function createWorkspaceTreeEvent(access: MergeRequestAccess, summary: string) {
+  return {
+    workspaceId: access.playground.workspaceLink,
+    reason: "merge-request-approved",
+    summary,
+    triggeredAt: new Date().toISOString(),
+    actor: {
+      userId: access.user.id,
+      name: getActorName(access.user),
+      email: access.user.email,
+      image: access.user.image,
+      username: access.user.email?.split("@")[0] ?? null,
+      role: access.role,
+    },
+  };
+}
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ workspaceId: string }> },
+  { params }: MergeRequestRouteContext,
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const workspaceId = (await params).workspaceId;
+    const access = await getMergeRequestAccess(workspaceId);
+
+    if (isAccessResponse(access)) {
+      return access;
     }
 
-    const workspaceId = (await params).workspaceId;
-    const body = await request.json();
-    const { title, description, path, content } = body;
+    const body = (await request.json().catch(() => null)) as
+      | {
+          title?: string;
+          description?: string;
+          path?: string;
+          content?: string;
+        }
+      | null;
+    const path = body?.path?.trim();
 
-    // Load playground to verify access
-    const playground = await prisma.playground.findUnique({
-      where: { id: workspaceId },
-      include: { members: true },
-    });
-
-    if (!playground) {
+    if (!path || typeof body?.content !== "string") {
       return NextResponse.json(
-        { error: "Playground not found" },
-        { status: 404 },
+        { error: "A file path and content are required." },
+        { status: 400 },
       );
     }
 
-    const isMember =
-      playground.ownerId === session.user.id ||
-      playground.members.some((m) => m.userId === session.user.id);
-
-    if (!isMember) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
-    }
-
-    // Get current file content to build diff
     const currentEntry = await prisma.playgroundEntry.findUnique({
-      where: { playgroundId_path: { playgroundId: workspaceId, path } },
+      where: {
+        playgroundId_path: {
+          playgroundId: access.playground.id,
+          path,
+        },
+      },
+      select: {
+        type: true,
+        content: true,
+      },
     });
+
+    if (currentEntry && currentEntry.type !== "FILE") {
+      return NextResponse.json(
+        { error: "Merge requests can only target files." },
+        { status: 400 },
+      );
+    }
 
     const oldContent = currentEntry?.content ?? "";
     const patch = diff.createPatch(
       path,
       oldContent,
-      content,
-      "Original",
-      "Modified",
+      body.content,
+      "Workspace",
+      "Merge request",
     );
 
-    // Save Merge Request
     const mr = await prisma.mergeRequest.create({
       data: {
-        playgroundId: workspaceId,
-        authorId: session.user.id,
-        title: title || `Update ${path}`,
-        description,
-        changes: { patch, newContent: content, path },
+        playgroundId: access.playground.id,
+        authorId: access.user.id,
+        title: body.title?.trim() || `Update ${path}`,
+        description: body.description?.trim() || null,
+        changes: {
+          patch,
+          oldContent,
+          newContent: body.content,
+          path,
+        },
       },
+      include: mergeRequestAuthorInclude,
     });
+
+    emitWorkspaceMergeRequestChanged(access.playground.workspaceLink, "new");
 
     return NextResponse.json({ mr });
   } catch (error) {
@@ -74,58 +221,83 @@ export async function POST(
 }
 
 export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ workspaceId: string }> },
+  _request: Request,
+  { params }: MergeRequestRouteContext,
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id)
-      return new NextResponse("Unauthorized", { status: 401 });
-
     const workspaceId = (await params).workspaceId;
+    const access = await getMergeRequestAccess(workspaceId);
+
+    if (isAccessResponse(access)) {
+      return access;
+    }
 
     const mrs = await prisma.mergeRequest.findMany({
-      where: { playgroundId: workspaceId },
-      include: { author: { select: { name: true, image: true, email: true } } },
-      orderBy: { createdAt: "desc" },
+      where: {
+        playgroundId: access.playground.id,
+      },
+      include: mergeRequestAuthorInclude,
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
     return NextResponse.json(mrs);
   } catch (error) {
+    console.error(error);
     return NextResponse.json({ error: "Failed to get MRs" }, { status: 500 });
   }
 }
 
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ workspaceId: string }> },
+  { params }: MergeRequestRouteContext,
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const workspaceId = (await params).workspaceId;
+    const access = await getMergeRequestAccess(workspaceId);
+
+    if (isAccessResponse(access)) {
+      return access;
     }
 
-    const workspaceId = (await params).workspaceId;
-    const body = await request.json();
-    const { mrId, status } = body;
+    const body = (await request.json().catch(() => null)) as
+      | {
+          mrId?: string;
+          status?: string;
+        }
+      | null;
+    const mrId = body?.mrId?.trim();
+    const status = body?.status;
 
-    const mr = await prisma.mergeRequest.findUnique({
-      where: { id: mrId, playgroundId: workspaceId },
+    if (!mrId || (status !== "APPROVED" && status !== "REJECTED")) {
+      return NextResponse.json(
+        { error: "A merge request id and valid status are required." },
+        { status: 400 },
+      );
+    }
+
+    const mr = await prisma.mergeRequest.findFirst({
+      where: {
+        id: mrId,
+        playgroundId: access.playground.id,
+      },
     });
 
     if (!mr) {
       return NextResponse.json({ error: "MR not found" }, { status: 404 });
     }
 
-    // Only owner or authorized roles can approve, but for now we let any member.
-    // In a real system, you'd check roles.
-
     if (status === "APPROVED") {
-      // Extract the new content and path from the changes we stored
-      const { path, newContent } = mr.changes as any;
+      const changes = mr.changes as {
+        path?: unknown;
+        newContent?: unknown;
+      };
+      const path = typeof changes.path === "string" ? changes.path : null;
+      const newContent =
+        typeof changes.newContent === "string" ? changes.newContent : null;
 
-      if (!path || newContent === undefined) {
+      if (!path || newContent === null) {
         return NextResponse.json(
           { error: "Invalid patch data" },
           { status: 400 },
@@ -137,41 +309,68 @@ export async function PUT(
       const parentPath = pathParts.length > 0 ? pathParts.join("/") : null;
       const fileExtension = name.includes(".") ? name.split(".").pop() : null;
 
-      // Update or create the actual playground entry
       await prisma.playgroundEntry.upsert({
         where: {
           playgroundId_path: {
-            playgroundId: workspaceId,
+            playgroundId: access.playground.id,
             path,
           },
         },
         create: {
-          playgroundId: workspaceId,
+          playgroundId: access.playground.id,
           path,
           name,
           parentPath,
           fileExtension,
           content: newContent,
           type: "FILE",
+          updatedById: access.user.id,
         },
         update: {
           content: newContent,
+          updatedAt: new Date(),
+          updatedById: access.user.id,
+        },
+      });
+
+      await prisma.playground.update({
+        where: {
+          id: access.playground.id,
+        },
+        data: {
           updatedAt: new Date(),
         },
       });
     }
 
     const updatedMr = await prisma.mergeRequest.update({
-      where: { id: mrId },
-      data: { status },
+      where: {
+        id: mrId,
+      },
+      data: {
+        status,
+      },
+      include: mergeRequestAuthorInclude,
     });
 
-    return NextResponse.json(updatedMr);
+    emitWorkspaceMergeRequestChanged(access.playground.workspaceLink, "updated");
+
+    if (status === "APPROVED") {
+      emitWorkspaceTreeUpdate(
+        createWorkspaceTreeEvent(
+          access,
+          `${getActorName(access.user)} approved ${mr.title}.`,
+        ),
+      );
+    }
+
+    return NextResponse.json({ mr: updatedMr });
   } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { error: "Failed to update merge request" },
+      { error: getErrorMessage(error, "Failed to update merge request") },
       { status: 500 },
     );
   }
 }
+

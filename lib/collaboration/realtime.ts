@@ -59,6 +59,8 @@ type ServerToClientEvents = {
   "workspace:tree-updated": (event: WorkspaceTreeUpdateEvent) => void;
   "workspace:chat:new": (message: WorkspaceChatMessage) => void;
   "workspace:activity:new": (activity: WorkspaceActivity) => void;
+  "merge-request:new": (payload: { workspaceId: string }) => void;
+  "merge-request:updated": (payload: { workspaceId: string }) => void;
   "user-joined": (payload: WorkspaceUserJoinedEvent) => void;
   "workspace:members-changed": (payload: {
     workspaceId: string;
@@ -154,6 +156,10 @@ type ExternalRealtimeEvent =
       type: "workspace:members-changed";
       workspaceId: string;
       reason: string;
+    }
+  | {
+      type: "merge-request:new" | "merge-request:updated";
+      workspaceId: string;
     }
   | {
       type: "voice:moderated-leave";
@@ -781,6 +787,24 @@ export function emitWorkspaceMembersChanged(
     workspaceId,
     reason,
   });
+}
+
+export function emitWorkspaceMergeRequestChanged(
+  workspaceId: string,
+  action: "new" | "updated",
+) {
+  const eventName = action === "new" ? "merge-request:new" : "merge-request:updated";
+
+  if (isExternalRealtimeEnabled()) {
+    publishExternalRealtimeEvent({
+      type: eventName,
+      workspaceId,
+    });
+    return;
+  }
+
+  const io = getSocketServer();
+  io?.to(getRoomName(workspaceId)).emit(eventName, { workspaceId });
 }
 
 export function enforceVoiceModeration(params: {

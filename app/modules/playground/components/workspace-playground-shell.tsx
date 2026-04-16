@@ -30,6 +30,7 @@ import type {
   GitHubRepositorySummary,
 } from "@/app/modules/github/types";
 import { CollaborationPanel } from "./collaboration-panel";
+import type { WorkspaceMergeRequestChange } from "./merge-request-panel";
 import { useWorkspaceVoice } from "../hooks/useWorkspaceVoice";
 import { useFileExplorer } from "../hooks/useFileExplorer";
 import { getTemplateFileContentMap } from "../lib";
@@ -289,6 +290,9 @@ export function WorkspacePlaygroundShell({
     "chat" | "members" | "voice" | "activity" | "merge-requests"
   >("chat");
   const [unreadMergeRequestsCount, setUnreadMergeRequestsCount] = useState(0);
+  const [pendingMergeRequestsCount, setPendingMergeRequestsCount] =
+    useState(0);
+  const [mergeRequestRefreshKey, setMergeRequestRefreshKey] = useState(0);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [unreadActivityCount, setUnreadActivityCount] = useState(0);
   const [chatDraft, setChatDraft] = useState("");
@@ -391,6 +395,23 @@ export function WorkspacePlaygroundShell({
             file.file.content !== (workspaceSyncedContents[file.id] ?? ""),
         )
         .map((file) => file.id),
+    [flattenedFiles, workspaceSyncedContents],
+  );
+
+  const mergeRequestFileChanges = useMemo<WorkspaceMergeRequestChange[]>(
+    () =>
+      flattenedFiles
+        .filter(
+          (file) =>
+            file.file.content !== (workspaceSyncedContents[file.id] ?? ""),
+        )
+        .map((file) => ({
+          path: file.path,
+          name: file.name,
+          oldContent: workspaceSyncedContents[file.id] ?? "",
+          newContent: file.file.content,
+          language: file.language,
+        })),
     [flattenedFiles, workspaceSyncedContents],
   );
 
@@ -619,6 +640,7 @@ export function WorkspacePlaygroundShell({
       }
 
       toast.success("Merge request created for admin review.");
+      setMergeRequestRefreshKey((currentKey) => currentKey + 1);
 
       // Optionally save file locally so the user knows it's saved locally
       void handleSaveFile(targetFileId);
@@ -1167,7 +1189,13 @@ export function WorkspacePlaygroundShell({
       }
     };
 
-    const handleMergeRequestNew = () => {
+    const handleMergeRequestChanged = (payload?: { workspaceId?: string }) => {
+      if (payload?.workspaceId && payload.workspaceId !== snapshot.id) {
+        return;
+      }
+
+      setMergeRequestRefreshKey((currentKey) => currentKey + 1);
+
       if (activePanelTab !== "merge-requests") {
         setUnreadMergeRequestsCount((currentCount) => currentCount + 1);
       }
@@ -1227,7 +1255,8 @@ export function WorkspacePlaygroundShell({
     socket.on("workspace:tree-updated", handleTreeUpdate);
     socket.on("workspace:chat:new", handleChat);
     socket.on("workspace:activity:new", handleActivity);
-    socket.on("merge-request:new", handleMergeRequestNew);
+    socket.on("merge-request:new", handleMergeRequestChanged);
+    socket.on("merge-request:updated", handleMergeRequestChanged);
     socket.on("user-joined", handleUserJoined);
     socket.on("workspace:members-changed", handleMembersChanged);
 
@@ -1241,7 +1270,8 @@ export function WorkspacePlaygroundShell({
       socket.off("workspace:tree-updated", handleTreeUpdate);
       socket.off("workspace:chat:new", handleChat);
       socket.off("workspace:activity:new", handleActivity);
-      socket.off("merge-request:new", handleMergeRequestNew);
+      socket.off("merge-request:new", handleMergeRequestChanged);
+      socket.off("merge-request:updated", handleMergeRequestChanged);
       socket.off("user-joined", handleUserJoined);
       socket.off("workspace:members-changed", handleMembersChanged);
     };
@@ -1444,10 +1474,14 @@ export function WorkspacePlaygroundShell({
 
   const collaborationContent = (
     <CollaborationPanel
+      workspaceId={snapshot.id}
       activeTab={activePanelTab}
       unreadChatCount={unreadChatCount}
       unreadActivityCount={unreadActivityCount}
       unreadMergeRequestsCount={unreadMergeRequestsCount}
+      pendingMergeRequestsCount={pendingMergeRequestsCount}
+      mergeRequestRefreshKey={mergeRequestRefreshKey}
+      mergeRequestFileChanges={mergeRequestFileChanges}
       currentUser={currentUser}
       members={members}
       presence={presence}
@@ -1482,6 +1516,10 @@ export function WorkspacePlaygroundShell({
       onRemoveMember={(memberId) => void handleRemoveMember(memberId)}
       onToggleVoiceMute={(memberId, isVoiceMuted) =>
         void handleToggleVoiceMute(memberId, isVoiceMuted)
+      }
+      onPendingMergeRequestsCountChange={setPendingMergeRequestsCount}
+      onMergeRequestCreated={() =>
+        setMergeRequestRefreshKey((currentKey) => currentKey + 1)
       }
       className={
         layout.isCompactViewport ? "border-l-0 border-t border-white/10" : ""

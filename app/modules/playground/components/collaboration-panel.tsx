@@ -36,6 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { MergeRequestPanel } from "./merge-request-panel";
+import type { WorkspaceMergeRequestChange } from "./merge-request-panel";
 
 type RemoteAudioState = {
   participant: WorkspaceVoiceParticipant;
@@ -43,10 +44,14 @@ type RemoteAudioState = {
 };
 
 type CollaborationPanelProps = {
+  workspaceId: string;
   activeTab: "chat" | "members" | "voice" | "activity" | "merge-requests";
   unreadChatCount: number;
   unreadActivityCount: number;
   unreadMergeRequestsCount?: number;
+  pendingMergeRequestsCount?: number;
+  mergeRequestRefreshKey?: number;
+  mergeRequestFileChanges?: WorkspaceMergeRequestChange[];
   currentUser: WorkspaceCurrentUser;
   members: WorkspaceMember[];
   presence: WorkspacePresence[];
@@ -82,6 +87,8 @@ type CollaborationPanelProps = {
   onDemoteMember: (memberId: string) => void;
   onRemoveMember: (memberId: string) => void;
   onToggleVoiceMute: (memberId: string, isVoiceMuted: boolean) => void;
+  onPendingMergeRequestsCountChange?: (count: number) => void;
+  onMergeRequestCreated?: () => void;
   className?: string;
 };
 
@@ -109,10 +116,14 @@ function AudioPlayer({ stream }: { stream: MediaStream | null }) {
 }
 
 export function CollaborationPanel({
+  workspaceId,
   activeTab,
   unreadChatCount,
   unreadActivityCount,
   unreadMergeRequestsCount,
+  pendingMergeRequestsCount,
+  mergeRequestRefreshKey,
+  mergeRequestFileChanges = [],
   currentUser,
   members,
   presence,
@@ -146,6 +157,8 @@ export function CollaborationPanel({
   onDemoteMember,
   onRemoveMember,
   onToggleVoiceMute,
+  onPendingMergeRequestsCountChange,
+  onMergeRequestCreated,
   className,
 }: CollaborationPanelProps) {
   const presenceByUserId = new Map(presence.map((item) => [item.userId, item]));
@@ -202,7 +215,14 @@ export function CollaborationPanel({
       <Tabs
         value={activeTab}
         onValueChange={(value) =>
-          onTabChange(value as "chat" | "members" | "voice" | "activity")
+          onTabChange(
+            value as
+              | "chat"
+              | "members"
+              | "voice"
+              | "activity"
+              | "merge-requests",
+          )
         }
         className="min-h-0 flex-1"
       >
@@ -257,13 +277,13 @@ export function CollaborationPanel({
               className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs"
             >
               <GitPullRequest className="h-4 w-4" />
-              MRs
-              {unreadMergeRequestsCount ? (
+              <span className="truncate">Merge Requests</span>
+              {pendingMergeRequestsCount || unreadMergeRequestsCount ? (
                 <Badge
                   variant="secondary"
                   className="ml-1 px-1.5 py-0 text-[10px]"
                 >
-                  {unreadMergeRequestsCount}
+                  {pendingMergeRequestsCount || unreadMergeRequestsCount}
                 </Badge>
               ) : null}
             </TabsTrigger>
@@ -837,7 +857,14 @@ export function CollaborationPanel({
           value="merge-requests"
           className="mt-0 flex h-full flex-col data-[state=inactive]:hidden"
         >
-          <MergeRequestPanel />
+          <MergeRequestPanel
+            workspaceId={workspaceId}
+            isActive={activeTab === "merge-requests"}
+            refreshKey={mergeRequestRefreshKey}
+            fileChanges={mergeRequestFileChanges}
+            onPendingCountChange={onPendingMergeRequestsCountChange}
+            onMergeRequestCreated={onMergeRequestCreated}
+          />
         </TabsContent>
       </Tabs>
     </aside>

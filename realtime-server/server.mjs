@@ -483,6 +483,12 @@ function handleInternalEvent(io, payload) {
         },
       );
       return { ok: true, statusCode: 200, message: "published" };
+    case "merge-request:new":
+    case "merge-request:updated":
+      io.to(getRoomName(payload.workspaceId)).emit(payload.type, {
+        workspaceId: payload.workspaceId,
+      });
+      return { ok: true, statusCode: 200, message: "published" };
     case "voice:moderated-leave": {
       const roomState = roomStates.get(payload.workspaceId);
 
