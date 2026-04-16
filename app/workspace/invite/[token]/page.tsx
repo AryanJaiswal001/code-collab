@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { acceptWorkspaceInviteToken } from "@/app/modules/workspaces/server";
 import { emitWorkspaceMembersChanged } from "@/lib/collaboration/realtime";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,8 @@ export default async function WorkspaceInvitePage({
         <p className="text-xs font-medium uppercase tracking-[0.22em] text-emerald-200/80">
           Workspace Invite
         </p>
+        <Image src="/invite.svg" alt="Invite" width={64} height={64} className="mx-auto mt-4" />
+
         <h1 className="mt-3 text-3xl font-semibold">Join This Workspace</h1>
         <p className="mt-4 text-sm leading-7 text-white/65">
           Accept the invite to become a workspace member and open the shared
