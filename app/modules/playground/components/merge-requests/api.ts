@@ -1,10 +1,10 @@
 "use client";
 
 import type {
+  MRStatus,
   MergeRequest,
   MergeRequestAuthor,
   MergeRequestChange,
-  MergeRequestStatus,
 } from "./types";
 
 type RawMergeRequest = Record<string, unknown>;
@@ -117,20 +117,35 @@ function normalizeChanges(value: unknown): MergeRequestChange[] {
   return singleChange ? [singleChange] : [];
 }
 
-function normalizeStatus(value: unknown): MergeRequestStatus {
-  return value === "APPROVED" || value === "REJECTED" ? value : "PENDING";
+function normalizeStatus(value: unknown): MRStatus {
+  if (value === "APPROVED" || value === "approved") {
+    return "approved";
+  }
+
+  if (value === "REJECTED" || value === "rejected") {
+    return "rejected";
+  }
+
+  return "pending";
+}
+
+function toApiStatus(status: Extract<MRStatus, "approved" | "rejected">) {
+  return status === "approved" ? "APPROVED" : "REJECTED";
 }
 
 export function normalizeMergeRequest(value: unknown): MergeRequest {
   const raw = (isRecord(value) ? value : {}) as RawMergeRequest;
 
+  const author = normalizeAuthor(raw.author);
+
   return {
     id: getString(raw.id),
     title: getString(raw.title, "Untitled merge request"),
+    author: author.name,
     description: getNullableString(raw.description),
     status: normalizeStatus(raw.status),
     changes: normalizeChanges(raw.changes),
-    author: normalizeAuthor(raw.author),
+    authorProfile: author,
     workspaceId:
       getString(raw.workspaceId) ||
       getString(raw.playgroundId) ||
@@ -205,14 +220,14 @@ export async function createMergeRequest(
 export async function updateMergeRequestStatus(
   workspaceId: string,
   mrId: string,
-  status: Extract<MergeRequestStatus, "APPROVED" | "REJECTED">,
+  status: Extract<MRStatus, "approved" | "rejected">,
 ) {
   const response = await fetch(`/api/workspaces/${workspaceId}/merge-requests`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ mrId, status }),
+    body: JSON.stringify({ mrId, status: toApiStatus(status) }),
   });
   const payload = await parseJsonResponse(response);
 
@@ -224,4 +239,3 @@ export async function updateMergeRequestStatus(
     isRecord(payload) && "mr" in payload ? payload.mr : payload,
   );
 }
-

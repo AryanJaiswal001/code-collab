@@ -33,8 +33,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { CommsPanel } from "./CommsPanel";
 import { MergeRequestPanel } from "./merge-request-panel";
 import type { WorkspaceMergeRequestChange } from "./merge-request-panel";
 
@@ -293,78 +293,14 @@ export function CollaborationPanel({
           value="chat"
           className="mt-0 flex h-full flex-col data-[state=inactive]:hidden"
         >
-          <ScrollArea className="ide-scrollbar min-h-0 flex-1 px-4 py-4">
-            <div className="space-y-3">
-              {chatMessages.length ? (
-                chatMessages.map((message) => {
-                  const isSelf = message.author.userId === currentUser.userId;
-
-                  return (
-                    <div
-                      key={message.id}
-                      className={cn(
-                        "flex gap-3",
-                        isSelf ? "justify-end" : "justify-start",
-                      )}
-                    >
-                      {!isSelf ? (
-                        <Avatar className="mt-0.5 h-8 w-8 border border-white/10">
-                          <AvatarImage
-                            src={message.author.image ?? undefined}
-                            alt={message.author.name}
-                          />
-                          <AvatarFallback>
-                            {getInitials(message.author.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                      ) : null}
-                      <div
-                        className={cn(
-                          "max-w-[85%] rounded-2xl border px-3 py-2 text-sm",
-                          isSelf
-                            ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-50"
-                            : "border-white/10 bg-white/[0.04] text-white",
-                        )}
-                      >
-                        <div className="flex items-center gap-2 text-[11px] text-white/55">
-                          <span>{isSelf ? "You" : message.author.name}</span>
-                          <span>
-                            {formatDistanceToNow(new Date(message.createdAt), {
-                              addSuffix: true,
-                            })}
-                          </span>
-                        </div>
-                        <p className="mt-1 whitespace-pre-wrap leading-6">
-                          {message.content}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm text-white/50">
-                  Start the conversation for this workspace.
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-
-          <div className="border-t border-white/10 p-4">
-            <Textarea
-              value={chatDraft}
-              onChange={(event) => onChatDraftChange(event.target.value)}
-              placeholder="Share context, ask for a push, or leave feedback..."
-              className="min-h-24 rounded-2xl border-white/10 bg-white/[0.03] text-white placeholder:text-white/35"
-            />
-            <Button
-              type="button"
-              className="mt-3 w-full rounded-xl border border-blue-500/40 bg-blue-600 text-white hover:bg-blue-500"
-              disabled={isSendingChat || !chatDraft.trim()}
-              onClick={onSendChat}
-            >
-              {isSendingChat ? "Sending..." : "Send Message"}
-            </Button>
-          </div>
+          <CommsPanel
+            currentUser={currentUser}
+            chatMessages={chatMessages}
+            chatDraft={chatDraft}
+            isSendingChat={isSendingChat}
+            onChatDraftChange={onChatDraftChange}
+            onSendChat={onSendChat}
+          />
         </TabsContent>
 
         <TabsContent
@@ -862,6 +798,7 @@ export function CollaborationPanel({
             isActive={activeTab === "merge-requests"}
             refreshKey={mergeRequestRefreshKey}
             fileChanges={mergeRequestFileChanges}
+            currentUser={currentUser}
             onPendingCountChange={onPendingMergeRequestsCountChange}
             onMergeRequestCreated={onMergeRequestCreated}
           />

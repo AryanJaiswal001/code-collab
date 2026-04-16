@@ -3,41 +3,24 @@
 import { formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft,
-  CheckCircle2,
   FileCode2,
   GitPullRequest,
-  Loader2,
-  XCircle,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type {
-  MergeRequest,
-  MergeRequestChange,
-  MergeRequestStatus,
-} from "./types";
+import { MRAdminActions } from "./MRAdminActions";
+import { MRStatusBadge } from "./MRStatusBadge";
+import type { MergeRequest, MergeRequestChange } from "./types";
 
 type MRDetailProps = {
   mergeRequest: MergeRequest;
   isUpdating: boolean;
+  canReview: boolean;
   onBack: () => void;
   onApprove: (mergeRequest: MergeRequest) => void;
   onReject: (mergeRequest: MergeRequest) => void;
-};
-
-const statusClasses: Record<MergeRequestStatus, string> = {
-  PENDING: "border-sky-400/30 bg-sky-400/10 text-sky-200",
-  APPROVED: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
-  REJECTED: "border-red-400/30 bg-red-400/10 text-red-200",
-};
-
-const statusLabels: Record<MergeRequestStatus, string> = {
-  PENDING: "Open",
-  APPROVED: "Approved",
-  REJECTED: "Rejected",
 };
 
 function getInitials(value: string) {
@@ -106,12 +89,11 @@ function DiffBlock({ change }: { change: MergeRequestChange }) {
 export function MRDetail({
   mergeRequest,
   isUpdating,
+  canReview,
   onBack,
   onApprove,
   onReject,
 }: MRDetailProps) {
-  const isOpen = mergeRequest.status === "PENDING";
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center gap-2 border-b border-white/10 px-3 py-3">
@@ -134,21 +116,23 @@ export function MRDetail({
 
       <ScrollArea className="ide-scrollbar min-h-0 flex-1">
         <div className="space-y-4 px-4 py-4">
+          <MRStatusBadge status={mergeRequest.status} prominent />
+
           <div className="space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex items-center gap-2">
                 <Avatar className="h-8 w-8 border border-white/10">
                   <AvatarImage
-                    src={mergeRequest.author.image ?? undefined}
-                    alt={mergeRequest.author.name}
+                    src={mergeRequest.authorProfile.image ?? undefined}
+                    alt={mergeRequest.author}
                   />
                   <AvatarFallback>
-                    {getInitials(mergeRequest.author.name) || "?"}
+                    {getInitials(mergeRequest.author) || "?"}
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
                   <p className="truncate text-sm text-white">
-                    {mergeRequest.author.name}
+                    {mergeRequest.author}
                   </p>
                   <p className="truncate text-xs text-white/45">
                     opened{" "}
@@ -158,12 +142,6 @@ export function MRDetail({
                   </p>
                 </div>
               </div>
-              <Badge
-                variant="outline"
-                className={cn("shrink-0", statusClasses[mergeRequest.status])}
-              >
-                {statusLabels[mergeRequest.status]}
-              </Badge>
             </div>
 
             <div className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
@@ -203,39 +181,14 @@ export function MRDetail({
         </div>
       </ScrollArea>
 
-      {isOpen ? (
-        <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-white/10 p-3">
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-lg border-emerald-400/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/15 hover:text-white"
-            disabled={isUpdating}
-            onClick={() => onApprove(mergeRequest)}
-          >
-            {isUpdating ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-            )}
-            Approve
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-lg border-red-400/25 bg-red-400/10 text-red-100 hover:bg-red-400/15 hover:text-white"
-            disabled={isUpdating}
-            onClick={() => onReject(mergeRequest)}
-          >
-            {isUpdating ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <XCircle className="mr-2 h-4 w-4" />
-            )}
-            Reject
-          </Button>
-        </div>
+      {canReview ? (
+        <MRAdminActions
+          mergeRequest={mergeRequest}
+          isUpdating={isUpdating}
+          onApprove={onApprove}
+          onReject={onReject}
+        />
       ) : null}
     </div>
   );
 }
-

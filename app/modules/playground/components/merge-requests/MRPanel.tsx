@@ -19,7 +19,9 @@ import { fetchMergeRequests, updateMergeRequestStatus } from "./api";
 import { CreateMRModal } from "./CreateMRModal";
 import { MRDetail } from "./MRDetail";
 import { MRList } from "./MRList";
+import { useUserRole } from "./useUserRole";
 import type {
+  MergeRequestUser,
   MergeRequest,
   MergeRequestFilter,
   MergeRequestStatus,
@@ -31,16 +33,17 @@ type MRPanelProps = {
   isActive?: boolean;
   refreshKey?: number;
   fileChanges?: WorkspaceMergeRequestChange[];
+  currentUser?: MergeRequestUser;
   onPendingCountChange?: (count: number) => void;
   onMergeRequestCreated?: () => void;
   className?: string;
 };
 
 const filterLabels: Record<MergeRequestFilter, string> = {
-  ALL: "All",
-  PENDING: "Open",
-  APPROVED: "Approved",
-  REJECTED: "Rejected",
+  pending: "Pending",
+  approved: "Approved",
+  rejected: "Rejected",
+  all: "All",
 };
 
 function getStatusCount(
@@ -56,17 +59,19 @@ export function MRPanel({
   isActive = true,
   refreshKey = 0,
   fileChanges = [],
+  currentUser,
   onPendingCountChange,
   onMergeRequestCreated,
   className,
 }: MRPanelProps) {
   const params = useParams() as { id?: string };
+  const { canReviewMergeRequests } = useUserRole(currentUser);
   const workspaceId = providedWorkspaceId ?? params.id ?? "";
   const [mergeRequests, setMergeRequests] = useState<MergeRequest[]>([]);
   const [selectedMergeRequestId, setSelectedMergeRequestId] = useState<
     string | null
   >(null);
-  const [filter, setFilter] = useState<MergeRequestFilter>("PENDING");
+  const [filter, setFilter] = useState<MergeRequestFilter>("pending");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
@@ -84,7 +89,7 @@ export function MRPanel({
   );
 
   const filteredMergeRequests = useMemo(() => {
-    if (filter === "ALL") {
+    if (filter === "all") {
       return mergeRequests;
     }
 
@@ -94,7 +99,7 @@ export function MRPanel({
   }, [filter, mergeRequests]);
 
   const pendingCount = useMemo(
-    () => getStatusCount(mergeRequests, "PENDING"),
+    () => getStatusCount(mergeRequests, "pending"),
     [mergeRequests],
   );
 
@@ -143,9 +148,18 @@ export function MRPanel({
 
   async function handleStatusChange(
     mergeRequest: MergeRequest,
-    status: Extract<MergeRequestStatus, "APPROVED" | "REJECTED">,
+    status: Extract<MergeRequestStatus, "approved" | "rejected">,
   ) {
     setUpdatingMergeRequestId(mergeRequest.id);
+    const previousMergeRequests = mergeRequests;
+
+    setMergeRequests((currentMergeRequests) =>
+      currentMergeRequests.map((currentMergeRequest) =>
+        currentMergeRequest.id === mergeRequest.id
+          ? { ...currentMergeRequest, status }
+          : currentMergeRequest,
+      ),
+    );
 
     try {
       const updatedMergeRequest = await updateMergeRequestStatus(
@@ -161,8 +175,13 @@ export function MRPanel({
             : currentMergeRequest,
         ),
       );
-      toast.success(status === "APPROVED" ? "MR Approved" : "MR Rejected");
+      toast.success(
+        status === "approved"
+          ? "Approved successfully"
+          : "Rejected successfully",
+      );
     } catch (updateError) {
+      setMergeRequests(previousMergeRequests);
       toast.error(
         updateError instanceof Error
           ? updateError.message
@@ -179,7 +198,7 @@ export function MRPanel({
       ...currentMergeRequests.filter((item) => item.id !== mergeRequest.id),
     ]);
     setSelectedMergeRequestId(mergeRequest.id);
-    setFilter("ALL");
+    setFilter("pending");
     onMergeRequestCreated?.();
   }
 
@@ -196,9 +215,9 @@ export function MRPanel({
               {pendingCount ? (
                 <Badge
                   variant="outline"
-                  className="border-sky-400/30 bg-sky-400/10 text-sky-100"
+                  className="border-yellow-400/30 bg-yellow-400/10 text-yellow-100"
                 >
-                  {pendingCount} open
+                  {pendingCount} pending
                 </Badge>
               ) : null}
             </div>
@@ -254,12 +273,13 @@ export function MRPanel({
         <MRDetail
           mergeRequest={selectedMergeRequest}
           isUpdating={updatingMergeRequestId === selectedMergeRequest.id}
+          canReview={canReviewMergeRequests}
           onBack={() => setSelectedMergeRequestId(null)}
           onApprove={(mergeRequest) =>
-            void handleStatusChange(mergeRequest, "APPROVED")
+            void handleStatusChange(mergeRequest, "approved")
           }
           onReject={(mergeRequest) =>
-            void handleStatusChange(mergeRequest, "REJECTED")
+            void handleStatusChange(mergeRequest, "rejected")
           }
         />
       ) : (

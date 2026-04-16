@@ -1,6 +1,7 @@
 "use client";
 
-export type MergeRequestStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type MRStatus = "pending" | "approved" | "rejected";
+export type MergeRequestStatus = MRStatus;
 
 export type MergeRequestAuthor = {
   id: string;
@@ -22,10 +23,11 @@ export type MergeRequestChange = {
 export type MergeRequest = {
   id: string;
   title: string;
+  author: string;
   description: string | null;
-  status: MergeRequestStatus;
+  status: MRStatus;
   changes: MergeRequestChange[];
-  author: MergeRequestAuthor;
+  authorProfile: MergeRequestAuthor;
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
@@ -39,5 +41,11 @@ export type WorkspaceMergeRequestChange = {
   language?: string;
 };
 
-export type MergeRequestFilter = "ALL" | MergeRequestStatus;
+export type MergeRequestFilter = "all" | MRStatus;
 
+export type MergeRequestUser = {
+  id?: string;
+  userId?: string;
+  name: string;
+  role: "admin" | "user" | "OWNER" | "ADMIN" | "MEMBER";
+};
