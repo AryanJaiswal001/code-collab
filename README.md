@@ -1,4 +1,5 @@
 # Deployed link (For easy running of the project without local setup):
+
 https://code-collab-dusky-xi.vercel.app/
 
 # Code Collab
@@ -7,22 +8,16 @@ Code Collab is a collaborative coding workspace built with Next.js, Auth.js, Pri
 
 It gives teams a shared editor, workspace-based collaboration, GitHub import, file assignment, invite links, chat, voice presence, and a split deployment model for app + realtime.
 
-## What This Project Includes
+## ✨ Features
 
-- Social sign-in with GitHub and Google
-- Workspace dashboard with create, rename, delete, and starring flows
-- Workspace creation wizard with:
-  - template-based setup
-  - GitHub repository import
-  - collaboration mode selection
-  - rules selection
-  - invite preparation
-- Shared editor experience with Monaco
-- File tree, file push, and workspace activity timeline
-- Realtime collaboration with Socket.IO
-- Member presence and voice session controls
-- Invite links and optional email invites
-- WebContainer-powered preview and terminal inside the editor
+- **💻 In-Browser IDE:** A powerful code editor built with Monaco, featuring syntax highlighting, autocomplete, and an interactive file tree.
+- **📦 WebContainers Integration:** Instantly boot Node.js environments directly in the browser to run and preview your projects—no local setup required. Full integrated terminal included.
+- **🚀 Extensive Code Starters:** Pre-configured templates for 30+ frameworks including Next.js, React, Vue, SvelteKit, Astro, Angular, Qwik, Node.js servers (Express, Koa, Hono), GraphQL, and specialized GSAP templates.
+- **🤝 Real-Time Collaboration:** Synchronized file editing, file tree management, member presence tracking, and voice session controls powered by a standalone Socket.IO server.
+- **🐙 GitHub Integration:** Seamlessly import existing repositories right into your collaborative workspaces.
+- **🔒 Secure Authentication:** Social sign-in powered by Auth.js (v5) supporting Google and GitHub OAuth.
+- **👥 Workspace Management:** Comprehensive dashboard with create, rename, delete, and starring flows. Share workspaces via secure invite links with optional email invitations via Nodemailer.
+- **🎨 Beautiful UI:** Polished interface featuring Dark/Light mode, built using Tailwind CSS v4 and `shadcn/ui`.
 
 ## Tech Stack
 
