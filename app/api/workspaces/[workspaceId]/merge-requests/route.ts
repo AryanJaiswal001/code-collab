@@ -38,6 +38,17 @@ const mergeRequestAuthorInclude = {
       image: true,
     },
   },
+  playground: {
+    select: {
+      ownerId: true,
+      members: {
+        select: {
+          userId: true,
+          role: true,
+        },
+      },
+    },
+  },
 };
 
 function getActorName(user: { name: string | null; email: string | null }) {
@@ -210,7 +221,7 @@ export async function POST(
 
     emitWorkspaceMergeRequestChanged(access.playground.workspaceLink, "new");
 
-    return NextResponse.json({ mr });
+    return NextResponse.json({ ...mr, author: { ...mr.author, role: mr.playground.ownerId === mr.authorId ? "OWNER" : (mr.playground.members.find(m => m.userId === mr.authorId)?.role ?? "MEMBER") } });
   } catch (error) {
     console.error(error);
     return NextResponse.json(
@@ -242,7 +253,15 @@ export async function GET(
       },
     });
 
-    return NextResponse.json(mrs);
+    const result = mrs.map(mr => ({
+      ...mr,
+      author: {
+        ...mr.author,
+        role: mr.playground.ownerId === mr.authorId ? "OWNER" : (mr.playground.members.find(m => m.userId === mr.authorId)?.role ?? "MEMBER"),
+      }
+    }));
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Failed to get MRs" }, { status: 500 });
@@ -282,11 +301,25 @@ export async function PUT(
         id: mrId,
         playgroundId: access.playground.id,
       },
+      include: mergeRequestAuthorInclude,
     });
 
     if (!mr) {
       return NextResponse.json({ error: "MR not found" }, { status: 404 });
     }
+
+    const mrAuthorRole = mr.playground.ownerId === mr.authorId ? "OWNER" : (mr.playground.members.find(m => m.userId === mr.authorId)?.role ?? "MEMBER");
+
+    // Role checks
+    // 1. If MR is created by MEMBER: ADMIN or OWNER can Accept/Reject
+    // 2. If MR is created by OWNER: OWNER can directly merge
+    if (mrAuthorRole === "MEMBER" && access.role === "MEMBER") {
+      return NextResponse.json({ error: "Only admins can approve MRs from members." }, { status: 403 });
+    }
+    if (mrAuthorRole === "OWNER" && access.role !== "OWNER") {
+      return NextResponse.json({ error: "Only the owner can merge their own MRs." }, { status: 403 });
+    }
+
 
     if (status === "APPROVED") {
       const changes = mr.changes as {
@@ -364,7 +397,7 @@ export async function PUT(
       );
     }
 
-    return NextResponse.json({ mr: updatedMr });
+    return NextResponse.json({ mr: { ...updatedMr, author: { ...updatedMr.author, role: updatedMr.playground.ownerId === updatedMr.authorId ? "OWNER" : (updatedMr.playground.members.find(m => m.userId === updatedMr.authorId)?.role ?? "MEMBER") } } });
   } catch (error) {
     console.error(error);
     return NextResponse.json(

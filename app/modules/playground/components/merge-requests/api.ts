@@ -58,6 +58,7 @@ function normalizeAuthor(value: unknown): MergeRequestAuthor {
     name,
     email,
     image: getNullableString(author.image),
+    role: getString(author.role) || undefined,
   };
 }
 

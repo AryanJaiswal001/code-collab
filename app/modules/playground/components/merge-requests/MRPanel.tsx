@@ -273,7 +273,11 @@ export function MRPanel({
         <MRDetail
           mergeRequest={selectedMergeRequest}
           isUpdating={updatingMergeRequestId === selectedMergeRequest.id}
-          canReview={canReviewMergeRequests}
+          canReview={
+            selectedMergeRequest.authorProfile.role === "OWNER"
+              ? currentUser?.role === "OWNER"
+              : currentUser?.role === "ADMIN" || currentUser?.role === "OWNER"
+          }
           onBack={() => setSelectedMergeRequestId(null)}
           onApprove={(mergeRequest) =>
             void handleStatusChange(mergeRequest, "approved")

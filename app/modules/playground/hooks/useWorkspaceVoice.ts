@@ -147,34 +147,46 @@ function getMicrophoneErrorMessage(error: unknown) {
   return error.message || "Unable to access your microphone.";
 }
 
+const globalVoiceState = {
+  localStream: null as MediaStream | null,
+  peerConnections: new Map<string, RTCPeerConnection>(),
+  pendingIceCandidates: new Map<string, RTCIceCandidateInit[]>(),
+  remoteStreams: new Map<string, MediaStream>(),
+  speakingFrame: null as number | null,
+  audioContext: null as AudioContext | null,
+  analyser: null as AnalyserNode | null,
+  lastSpeakingState: false,
+  participants: [] as WorkspaceVoiceParticipant[],
+  isSelfMuted: false,
+};
+
 export function useWorkspaceVoice({
   workspaceId,
   currentUser,
   socket,
 }: UseWorkspaceVoiceParams) {
-  const [isVoiceJoined, setIsVoiceJoined] = useState(false);
+  const [isVoiceJoined, setIsVoiceJoined] = useState(!!globalVoiceState.localStream);
   const [isJoiningVoice, setIsJoiningVoice] = useState(false);
-  const [isSelfMuted, setIsSelfMuted] = useState(false);
-  const [isListeningForSound, setIsListeningForSound] = useState(false);
+  const [isSelfMuted, setIsSelfMuted] = useState(globalVoiceState.isSelfMuted);
+  const [isListeningForSound, setIsListeningForSound] = useState(!!globalVoiceState.analyser);
   const [localAudioLevel, setLocalAudioLevel] = useState(0);
   const [connectionStatus, setConnectionStatus] =
-    useState<VoiceConnectionStatus>("idle");
+    useState<VoiceConnectionStatus>(globalVoiceState.localStream ? "connected" : "idle");
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [participants, setParticipants] = useState<WorkspaceVoiceParticipant[]>([]);
   const [remoteAudio, setRemoteAudio] = useState<RemoteAudioState[]>([]);
 
-  const localStreamRef = useRef<MediaStream | null>(null);
-  const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
-  const pendingIceCandidatesRef = useRef<Map<string, RTCIceCandidateInit[]>>(
-    new Map(),
-  );
-  const remoteStreamsRef = useRef<Map<string, MediaStream>>(new Map());
-  const speakingFrameRef = useRef<number | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const lastSpeakingStateRef = useRef(false);
-  const participantsRef = useRef<WorkspaceVoiceParticipant[]>([]);
-  const isSelfMutedRef = useRef(false);
+  // Use a global singleton object to persist state across unmounts/tab visibility changes
+  const localStreamRef = { get current() { return globalVoiceState.localStream; }, set current(v) { globalVoiceState.localStream = v; } };
+  const peerConnectionsRef = { get current() { return globalVoiceState.peerConnections; }, set current(v) { globalVoiceState.peerConnections = v; } };
+  const pendingIceCandidatesRef = { get current() { return globalVoiceState.pendingIceCandidates; }, set current(v) { globalVoiceState.pendingIceCandidates = v; } };
+  const remoteStreamsRef = { get current() { return globalVoiceState.remoteStreams; }, set current(v) { globalVoiceState.remoteStreams = v; } };
+  const speakingFrameRef = { get current() { return globalVoiceState.speakingFrame; }, set current(v) { globalVoiceState.speakingFrame = v; } };
+  const audioContextRef = { get current() { return globalVoiceState.audioContext; }, set current(v) { globalVoiceState.audioContext = v; } };
+  const analyserRef = { get current() { return globalVoiceState.analyser; }, set current(v) { globalVoiceState.analyser = v; } };
+  const lastSpeakingStateRef = { get current() { return globalVoiceState.lastSpeakingState; }, set current(v) { globalVoiceState.lastSpeakingState = v; } };
+  const participantsRef = { get current() { return globalVoiceState.participants; }, set current(v) { globalVoiceState.participants = v; } };
+  const isSelfMutedRef = { get current() { return globalVoiceState.isSelfMuted; }, set current(v) { globalVoiceState.isSelfMuted = v; } };
 
   useEffect(() => {
     participantsRef.current = participants;
@@ -215,7 +227,7 @@ export function useWorkspaceVoice({
 
   const cleanupVoice = useCallback(() => {
     if (speakingFrameRef.current) {
-      window.cancelAnimationFrame(speakingFrameRef.current);
+      window.clearTimeout(speakingFrameRef.current);
       speakingFrameRef.current = null;
     }
 
@@ -312,7 +324,7 @@ export function useWorkspaceVoice({
     }
 
     if (speakingFrameRef.current) {
-      window.cancelAnimationFrame(speakingFrameRef.current);
+      window.clearTimeout(speakingFrameRef.current);
       speakingFrameRef.current = null;
     }
 
@@ -359,10 +371,11 @@ export function useWorkspaceVoice({
         });
       }
 
-      speakingFrameRef.current = window.requestAnimationFrame(tick);
+      // Use setTimeout instead of requestAnimationFrame so it runs in hidden tabs
+      speakingFrameRef.current = window.setTimeout(tick, 100) as unknown as number;
     };
 
-    speakingFrameRef.current = window.requestAnimationFrame(tick);
+    speakingFrameRef.current = window.setTimeout(tick, 100) as unknown as number;
   }, [currentUser.userId, socket, workspaceId]);
 
   const joinVoice = useCallback(async () => {
@@ -660,9 +673,23 @@ export function useWorkspaceVoice({
   }, [isSelfMuted]);
 
   useEffect(() => {
-    return () => {
-      cleanupVoice();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        if (audioContextRef.current?.state === "suspended") {
+          void audioContextRef.current.resume().catch(() => undefined);
+        }
+      }
     };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Intentionally omitting cleanupVoice on unmount!
+    // We want the WebRTC connection to persist when tabs switch or components remount.
+    // The user will explicitly leave voice using the leaveVoice function.
   }, [cleanupVoice]);
 
   useEffect(() => {

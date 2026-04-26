@@ -8,6 +8,7 @@ export type MergeRequestAuthor = {
   name: string;
   email: string | null;
   image: string | null;
+  role?: string;
 };
 
 export type MergeRequestChange = {
