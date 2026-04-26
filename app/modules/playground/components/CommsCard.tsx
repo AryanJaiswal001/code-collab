@@ -27,40 +27,43 @@ export function CommsCard({ message, currentUser }: CommsCardProps) {
   const authorName = isSelf ? "You" : message.author.name;
 
   return (
-    <article
-      className={cn(
-        "min-w-[260px] max-w-[320px] flex-shrink-0 rounded-lg border p-4 text-sm",
-        isSelf
-          ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-50"
-          : "border-white/10 bg-white/[0.04] text-white",
-      )}
-    >
-      <div className="flex min-w-0 items-center gap-3">
-        <Avatar className="h-8 w-8 flex-shrink-0 border border-white/10">
-          <AvatarImage
-            src={message.author.image ?? undefined}
-            alt={authorName}
-          />
-          <AvatarFallback>{getInitials(authorName) || "?"}</AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-white" title={authorName}>
-            {authorName}
-          </p>
-          <p className="truncate text-[11px] text-white/45">
-            {formatDistanceToNow(new Date(message.createdAt), {
-              addSuffix: true,
-            })}
-          </p>
-        </div>
-      </div>
-
-      <p
-        className="mt-3 max-h-40 overflow-hidden whitespace-pre-wrap break-words leading-6 text-white/85 [overflow-wrap:anywhere]"
-        title={message.content}
+    <article className={cn("flex w-full", isSelf ? "justify-end" : "justify-start")}>
+      <div
+        className={cn(
+          "flex max-w-[70%] flex-col gap-2 rounded-2xl p-4 text-sm",
+          isSelf
+            ? "rounded-br-sm bg-blue-600 text-white"
+            : "rounded-bl-sm border border-white/10 bg-white/[0.04] text-white",
+        )}
       >
-        {message.content}
-      </p>
+        {!isSelf && (
+          <div className="flex items-center gap-2">
+            <Avatar className="h-6 w-6 flex-shrink-0 border border-white/10">
+              <AvatarImage src={message.author.image ?? undefined} alt={authorName} />
+              <AvatarFallback className="text-[10px]">{getInitials(authorName) || "?"}</AvatarFallback>
+            </Avatar>
+            <p className="truncate text-xs font-semibold text-white/90" title={authorName}>
+              {authorName}
+            </p>
+          </div>
+        )}
+
+        <p
+          className="whitespace-pre-wrap break-words leading-relaxed [overflow-wrap:anywhere]"
+          title={message.content}
+        >
+          {message.content}
+        </p>
+
+        <p
+          className={cn(
+            "text-[10px] mt-1 text-right",
+            isSelf ? "text-blue-200" : "text-white/40"
+          )}
+        >
+          {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
+        </p>
+      </div>
     </article>
   );
 }
