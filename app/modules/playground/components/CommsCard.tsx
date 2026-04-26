@@ -27,7 +27,9 @@ export function CommsCard({ message, currentUser }: CommsCardProps) {
   const authorName = isSelf ? "You" : message.author.name;
 
   return (
-    <article className={cn("flex w-full", isSelf ? "justify-end" : "justify-start")}>
+    <article
+      className={cn("flex w-full", isSelf ? "justify-end" : "justify-start")}
+    >
       <div
         className={cn(
           "flex max-w-[70%] flex-col gap-2 rounded-2xl p-4 text-sm",
@@ -39,10 +41,18 @@ export function CommsCard({ message, currentUser }: CommsCardProps) {
         {!isSelf && (
           <div className="flex items-center gap-2">
             <Avatar className="h-6 w-6 flex-shrink-0 border border-white/10">
-              <AvatarImage src={message.author.image ?? undefined} alt={authorName} />
-              <AvatarFallback className="text-[10px]">{getInitials(authorName) || "?"}</AvatarFallback>
+              <AvatarImage
+                src={message.author.image ?? undefined}
+                alt={authorName}
+              />
+              <AvatarFallback className="text-[10px]">
+                {getInitials(authorName) || "?"}
+              </AvatarFallback>
             </Avatar>
-            <p className="truncate text-xs font-semibold text-white/90" title={authorName}>
+            <p
+              className="truncate text-xs font-semibold text-white/90"
+              title={authorName}
+            >
               {authorName}
             </p>
           </div>
@@ -58,13 +68,14 @@ export function CommsCard({ message, currentUser }: CommsCardProps) {
         <p
           className={cn(
             "text-[10px] mt-1 text-right",
-            isSelf ? "text-blue-200" : "text-white/40"
+            isSelf ? "text-blue-200" : "text-white/40",
           )}
         >
-          {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
+          {formatDistanceToNow(new Date(message.createdAt), {
+            addSuffix: true,
+          })}
         </p>
       </div>
     </article>
   );
 }
-
