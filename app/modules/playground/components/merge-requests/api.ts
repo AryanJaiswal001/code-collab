@@ -183,9 +183,12 @@ async function parseJsonResponse(response: Response) {
 }
 
 export async function fetchMergeRequests(workspaceId: string) {
-  const response = await fetch(`/api/workspaces/${workspaceId}/merge-requests`, {
-    cache: "no-store",
-  });
+  const response = await fetch(
+    `/api/workspaces/${workspaceId}/merge-requests`,
+    {
+      cache: "no-store",
+    },
+  );
   const payload = await parseJsonResponse(response);
 
   if (!response.ok) {
@@ -200,13 +203,16 @@ export async function createMergeRequest(
   workspaceId: string,
   input: CreateMergeRequestInput,
 ) {
-  const response = await fetch(`/api/workspaces/${workspaceId}/merge-requests`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  const response = await fetch(
+    `/api/workspaces/${workspaceId}/merge-requests`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
     },
-    body: JSON.stringify(input),
-  });
+  );
   const payload = await parseJsonResponse(response);
 
   if (!response.ok) {
@@ -223,13 +229,16 @@ export async function updateMergeRequestStatus(
   mrId: string,
   status: Extract<MRStatus, "approved" | "rejected">,
 ) {
-  const response = await fetch(`/api/workspaces/${workspaceId}/merge-requests`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
+  const response = await fetch(
+    `/api/workspaces/${workspaceId}/merge-requests`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ mrId, status: toApiStatus(status) }),
     },
-    body: JSON.stringify({ mrId, status: toApiStatus(status) }),
-  });
+  );
   const payload = await parseJsonResponse(response);
 
   if (!response.ok) {
