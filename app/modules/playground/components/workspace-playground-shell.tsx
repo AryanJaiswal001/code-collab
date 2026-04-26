@@ -1496,6 +1496,7 @@ export function WorkspacePlaygroundShell({
       isSelfMuted={voice.isSelfMuted}
       isListeningForSound={voice.isListeningForSound}
       localAudioLevel={voice.localAudioLevel}
+      voiceConnectionStatus={voice.connectionStatus}
       voiceError={voice.voiceError}
       inviteEmailDraft={inviteEmailDraft}
       latestInviteUrl={latestInviteUrl}
@@ -1507,6 +1508,7 @@ export function WorkspacePlaygroundShell({
       onJoinVoice={() => void voice.joinVoice()}
       onLeaveVoice={() => voice.leaveVoice()}
       onToggleSelfMuted={voice.toggleSelfMuted}
+      onRetryVoiceConnection={() => void voice.retryVoiceConnection()}
       onClearVoiceError={voice.clearVoiceError}
       onInviteEmailDraftChange={setInviteEmailDraft}
       onCreateInviteLink={() => void handleCreateInviteLink()}
@@ -2057,10 +2059,15 @@ export function WorkspacePlaygroundShell({
           onOpenChange={layout.setRightRailSheetOpen}
         >
           <SheetContent
-            side="right"
-            className="w-full max-w-md border-white/10 bg-[#050816] p-0 text-white"
+            side={layout.isMobile ? "bottom" : "right"}
+            className={cn(
+              "w-full border-white/10 bg-[#050816] p-0 text-white",
+              layout.isMobile
+                ? "h-[85dvh] max-h-[85dvh] rounded-t-2xl border-t"
+                : "max-w-md",
+            )}
           >
-            <SheetHeader className="border-b border-white/10 px-4 py-4 text-left">
+            <SheetHeader className="shrink-0 border-b border-white/10 px-4 py-4 text-left">
               <SheetTitle className="text-white">Right Rail</SheetTitle>
               <SheetDescription className="text-white/55">
                 Preview, terminal, and collaboration stay available here on

@@ -27,6 +27,7 @@ import type {
   WorkspacePresence,
   WorkspaceVoiceParticipant,
 } from "@/app/modules/workspaces/types";
+import type { VoiceConnectionStatus } from "../hooks/useWorkspaceVoice";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -66,6 +67,7 @@ type CollaborationPanelProps = {
   isSelfMuted: boolean;
   isListeningForSound: boolean;
   localAudioLevel: number;
+  voiceConnectionStatus: VoiceConnectionStatus;
   voiceError: string | null;
   inviteEmailDraft: string;
   latestInviteUrl: string | null;
@@ -79,6 +81,7 @@ type CollaborationPanelProps = {
   onJoinVoice: () => void;
   onLeaveVoice: () => void;
   onToggleSelfMuted: () => void;
+  onRetryVoiceConnection: () => void;
   onClearVoiceError: () => void;
   onInviteEmailDraftChange: (value: string) => void;
   onCreateInviteLink: () => void;
@@ -105,14 +108,47 @@ function AudioPlayer({ stream }: { stream: MediaStream | null }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    if (!audioRef.current) {
+    const audioElement = audioRef.current;
+
+    if (!audioElement) {
       return;
     }
 
-    audioRef.current.srcObject = stream;
+    audioElement.srcObject = stream;
+
+    if (!stream) {
+      return;
+    }
+
+    void audioElement.play().catch((error) => {
+      console.warn("[voice] Remote audio playback was blocked.", error);
+    });
   }, [stream]);
 
-  return <audio ref={audioRef} autoPlay playsInline className="hidden" />;
+  return (
+    <audio
+      ref={audioRef}
+      autoPlay
+      playsInline
+      className="hidden"
+      aria-hidden="true"
+    />
+  );
+}
+
+function getVoiceStatusLabel(status: VoiceConnectionStatus) {
+  switch (status) {
+    case "requesting-microphone":
+      return "Requesting microphone";
+    case "connecting":
+      return "Connecting";
+    case "connected":
+      return "Connected";
+    case "failed":
+      return "Failed";
+    default:
+      return "Idle";
+  }
 }
 
 export function CollaborationPanel({
@@ -138,6 +174,7 @@ export function CollaborationPanel({
   isSelfMuted,
   isListeningForSound,
   localAudioLevel,
+  voiceConnectionStatus,
   voiceError,
   inviteEmailDraft,
   latestInviteUrl,
@@ -149,6 +186,7 @@ export function CollaborationPanel({
   onJoinVoice,
   onLeaveVoice,
   onToggleSelfMuted,
+  onRetryVoiceConnection,
   onClearVoiceError,
   onInviteEmailDraftChange,
   onCreateInviteLink,
@@ -517,11 +555,11 @@ export function CollaborationPanel({
 
         <TabsContent
           value="voice"
-          className="mt-0 flex h-full flex-col data-[state=inactive]:hidden bg-[#0F111A]"
+          className="mt-0 flex h-full min-h-0 flex-col bg-[#0F111A] data-[state=inactive]:hidden"
         >
           {isVoiceJoined ? (
             <>
-              <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-white/5 bg-[#171A21] px-4 py-3">
+              <div className="sticky top-0 z-10 flex flex-shrink-0 flex-col gap-3 border-b border-white/5 bg-[#171A21] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
                     <Volume2 className="h-4 w-4" />
@@ -531,17 +569,19 @@ export function CollaborationPanel({
                       Voice Channel
                     </h2>
                     <p className="text-xs font-medium text-emerald-400">
+                      {getVoiceStatusLabel(voiceConnectionStatus)} -{" "}
                       {voiceParticipants.length} connected
                     </p>
                   </div>
                 </div>
 
-                <div className="flex flex-shrink-0 items-center gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-8 border-white/10 bg-white/5 hover:bg-white/10 text-white"
+                    className="h-8 border-white/10 bg-white/5 text-white hover:bg-white/10"
                     onClick={onToggleSelfMuted}
+                    aria-label={isSelfMuted ? "Unmute microphone" : "Mute microphone"}
                   >
                     {isSelfMuted ? (
                       <MicOff className="h-4 w-4 text-red-400 mr-1.5" />
@@ -555,6 +595,7 @@ export function CollaborationPanel({
                     variant="ghost"
                     className="h-8 border border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300"
                     onClick={onLeaveVoice}
+                    aria-label="Disconnect from voice"
                   >
                     <LogOut className="h-4 w-4 mr-1.5" />
                     Disconnect
@@ -575,11 +616,20 @@ export function CollaborationPanel({
                     >
                       Dismiss
                     </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-red-300 hover:bg-red-500/20 hover:text-white"
+                      onClick={onRetryVoiceConnection}
+                    >
+                      Retry
+                    </Button>
                   </div>
                 </div>
               ) : null}
 
-              <ScrollArea className="ide-scrollbar min-h-0 flex-1 px-4 py-4">
+              <ScrollArea className="ide-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-4">
                 <div className="grid grid-cols-1 gap-2">
                   {voiceParticipants.length ? (
                     voiceParticipants.map((participant) => {
@@ -711,7 +761,7 @@ export function CollaborationPanel({
               </ScrollArea>
             </>
           ) : (
-            <div className="flex h-full items-center justify-center p-4">
+            <div className="flex h-full min-h-0 items-center justify-center overflow-y-auto p-4">
               <div className="w-full max-w-sm rounded-xl border border-white/5 bg-[#171A21] p-6 shadow-xl">
                 <div className="mb-6 flex justify-center">
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10">
@@ -725,9 +775,21 @@ export function CollaborationPanel({
                   Jump in to hear your teammates and collaborate in real-time.
                   (Discord-style huddle)
                 </p>
+                <p className="mt-3 text-center text-xs font-medium text-zinc-500">
+                  {getVoiceStatusLabel(voiceConnectionStatus)}
+                </p>
                 {voiceError ? (
                   <div className="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
-                    {voiceError}
+                    <p>{voiceError}</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="mt-2 h-8 px-2 text-red-300 hover:bg-red-500/20 hover:text-white"
+                      onClick={onRetryVoiceConnection}
+                    >
+                      Retry
+                    </Button>
                   </div>
                 ) : null}
                 <Button
@@ -735,6 +797,7 @@ export function CollaborationPanel({
                   className="mt-6 w-full rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-500 h-10 transition-colors"
                   disabled={isJoiningVoice}
                   onClick={onJoinVoice}
+                  aria-label="Join voice channel"
                 >
                   {isJoiningVoice ? (
                     <>

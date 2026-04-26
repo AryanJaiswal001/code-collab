@@ -1908,6 +1908,82 @@ export async function sendWorkspaceEmailInviteBatch(params: {
   };
 }
 
+export async function getWorkspaceInvitePreview(token: string) {
+  const currentUser = await requireCurrentUser();
+  const invite = await prisma.playgroundInvite.findFirst({
+    where: {
+      tokenHash: hashInviteToken(token),
+    },
+    include: {
+      playground: {
+        select: {
+          id: true,
+          workspaceLink: true,
+          name: true,
+          description: true,
+        },
+      },
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+        },
+      },
+    },
+  });
+
+  if (!invite) {
+    throw new WorkspaceServiceError("Invalid or expired invite.", 404);
+  }
+
+  if (invite.status !== "PENDING") {
+    throw new WorkspaceServiceError("Invalid or expired invite.", 410);
+  }
+
+  if (invite.expiresAt.getTime() < Date.now()) {
+    await prisma.playgroundInvite.update({
+      where: {
+        id: invite.id,
+      },
+      data: {
+        status: "EXPIRED",
+      },
+    });
+
+    throw new WorkspaceServiceError("Invalid or expired invite.", 410);
+  }
+
+  if (invite.email && invite.email !== currentUser.email?.toLowerCase()) {
+    throw new WorkspaceServiceError(
+      "This invite is tied to a different email address.",
+      403,
+    );
+  }
+
+  const existingMember = await prisma.playgroundMember.findFirst({
+    where: {
+      playgroundId: invite.playgroundId,
+      userId: currentUser.id,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  return {
+    workspaceLink: invite.playground.workspaceLink,
+    workspaceName: invite.playground.name,
+    workspaceDescription: invite.playground.description,
+    inviter: mapUserToActor(invite.createdBy),
+    role: invite.role,
+    email: invite.email,
+    expiresAt: invite.expiresAt.toISOString(),
+    alreadyMember: Boolean(existingMember),
+  };
+}
+
 export async function acceptWorkspaceInviteToken(token: string) {
   const currentUser = await requireCurrentUser();
   const invite = await prisma.playgroundInvite.findFirst({

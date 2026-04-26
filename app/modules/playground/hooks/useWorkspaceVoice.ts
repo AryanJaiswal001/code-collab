@@ -17,6 +17,19 @@ type VoiceSignal =
       candidate: RTCIceCandidateInit;
     };
 
+export type VoiceConnectionStatus =
+  | "idle"
+  | "requesting-microphone"
+  | "connecting"
+  | "connected"
+  | "failed";
+
+type VoiceSignalPayload = {
+  sourceSocketId: string;
+  sourceUser?: WorkspaceVoiceParticipant;
+  signal: VoiceSignal;
+};
+
 type RemoteAudioState = {
   participant: WorkspaceVoiceParticipant;
   stream: MediaStream | null;
@@ -34,6 +47,7 @@ function createPeerConnection(params: {
   targetSocketId: string;
   localStream: MediaStream;
   onRemoteStream: (socketId: string, stream: MediaStream) => void;
+  onConnectionStatusChange: (status: VoiceConnectionStatus) => void;
 }) {
   const peer = new RTCPeerConnection({
     iceServers: [
@@ -46,12 +60,18 @@ function createPeerConnection(params: {
   for (const track of params.localStream.getTracks()) {
     peer.addTrack(track, params.localStream);
   }
+  console.debug(
+    "[voice] Added local audio tracks to peer connection.",
+    params.targetSocketId,
+    params.localStream.getAudioTracks().length,
+  );
 
   peer.onicecandidate = (event) => {
     if (!event.candidate) {
       return;
     }
 
+    console.debug("[voice] Sending ICE candidate.", params.targetSocketId);
     params.socket.emit("voice:signal", {
       workspaceId: params.workspaceId,
       targetSocketId: params.targetSocketId,
@@ -64,13 +84,67 @@ function createPeerConnection(params: {
 
   peer.ontrack = (event) => {
     const [stream] = event.streams;
+    const hasAudioTrack = Boolean(stream?.getAudioTracks().length);
 
-    if (stream) {
+    if (stream && hasAudioTrack) {
+      console.debug(
+        "[voice] Remote audio track received.",
+        params.targetSocketId,
+        stream.getAudioTracks().length,
+      );
       params.onRemoteStream(params.targetSocketId, stream);
     }
   };
 
+  peer.onconnectionstatechange = () => {
+    console.debug(
+      "[voice] Peer connection state changed.",
+      params.targetSocketId,
+      peer.connectionState,
+    );
+
+    if (peer.connectionState === "connected") {
+      params.onConnectionStatusChange("connected");
+      return;
+    }
+
+    if (
+      peer.connectionState === "failed" ||
+      peer.connectionState === "disconnected"
+    ) {
+      params.onConnectionStatusChange("failed");
+    }
+  };
+
+  peer.oniceconnectionstatechange = () => {
+    console.debug(
+      "[voice] ICE connection state changed.",
+      params.targetSocketId,
+      peer.iceConnectionState,
+    );
+  };
+
   return peer;
+}
+
+function getMicrophoneErrorMessage(error: unknown) {
+  if (!(error instanceof DOMException || error instanceof Error)) {
+    return "Unable to access your microphone.";
+  }
+
+  if (error.name === "NotAllowedError" || error.name === "SecurityError") {
+    return "Microphone permission was denied. Allow microphone access in your browser settings and try again.";
+  }
+
+  if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+    return "No microphone was found on this device.";
+  }
+
+  if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+    return "Your microphone is already in use or could not be started.";
+  }
+
+  return error.message || "Unable to access your microphone.";
 }
 
 export function useWorkspaceVoice({
@@ -83,12 +157,18 @@ export function useWorkspaceVoice({
   const [isSelfMuted, setIsSelfMuted] = useState(false);
   const [isListeningForSound, setIsListeningForSound] = useState(false);
   const [localAudioLevel, setLocalAudioLevel] = useState(0);
+  const [connectionStatus, setConnectionStatus] =
+    useState<VoiceConnectionStatus>("idle");
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [participants, setParticipants] = useState<WorkspaceVoiceParticipant[]>([]);
   const [remoteAudio, setRemoteAudio] = useState<RemoteAudioState[]>([]);
 
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const pendingIceCandidatesRef = useRef<Map<string, RTCIceCandidateInit[]>>(
+    new Map(),
+  );
+  const remoteStreamsRef = useRef<Map<string, MediaStream>>(new Map());
   const speakingFrameRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -98,6 +178,17 @@ export function useWorkspaceVoice({
 
   useEffect(() => {
     participantsRef.current = participants;
+    setRemoteAudio(() =>
+      Array.from(remoteStreamsRef.current.entries()).flatMap(
+        ([socketId, stream]) => {
+          const participant = participants.find(
+            (item) => item.socketId === socketId,
+          );
+
+          return participant ? [{ participant, stream }] : [];
+        },
+      ),
+    );
   }, [participants]);
 
   useEffect(() => {
@@ -105,11 +196,16 @@ export function useWorkspaceVoice({
   }, [isSelfMuted]);
 
   const updateRemoteStream = useCallback((socketId: string, stream: MediaStream) => {
+    remoteStreamsRef.current.set(socketId, stream);
     setRemoteAudio((currentAudio) => {
       const nextAudio = currentAudio.filter((item) => item.participant.socketId !== socketId);
       const participant = participantsRef.current.find((item) => item.socketId === socketId);
 
       if (!participant) {
+        console.debug(
+          "[voice] Remote stream arrived before participant metadata.",
+          socketId,
+        );
         return currentAudio;
       }
 
@@ -136,6 +232,8 @@ export function useWorkspaceVoice({
     }
 
     peerConnectionsRef.current.clear();
+    pendingIceCandidatesRef.current.clear();
+    remoteStreamsRef.current.clear();
     setRemoteAudio([]);
 
     for (const track of localStreamRef.current?.getTracks() ?? []) {
@@ -143,6 +241,7 @@ export function useWorkspaceVoice({
     }
 
     localStreamRef.current = null;
+    setConnectionStatus("idle");
   }, []);
 
   const ensurePeerConnection = useCallback((targetSocketId: string) => {
@@ -162,8 +261,10 @@ export function useWorkspaceVoice({
       targetSocketId,
       localStream: localStreamRef.current,
       onRemoteStream: updateRemoteStream,
+      onConnectionStatusChange: setConnectionStatus,
     });
 
+    console.debug("[voice] Created peer connection.", targetSocketId);
     peerConnectionsRef.current.set(targetSocketId, peer);
     return peer;
   }, [socket, updateRemoteStream, workspaceId]);
@@ -177,6 +278,7 @@ export function useWorkspaceVoice({
 
     const offer = await peer.createOffer();
     await peer.setLocalDescription(offer);
+    console.debug("[voice] Sending offer.", targetSocketId);
     socket.emit("voice:signal", {
       workspaceId,
       targetSocketId,
@@ -186,6 +288,23 @@ export function useWorkspaceVoice({
       } satisfies VoiceSignal,
     });
   }, [ensurePeerConnection, socket, workspaceId]);
+
+  const flushPendingIceCandidates = useCallback(async (socketId: string) => {
+    const peer = peerConnectionsRef.current.get(socketId);
+    const candidates = pendingIceCandidatesRef.current.get(socketId);
+
+    if (!peer || !peer.remoteDescription || !candidates?.length) {
+      return;
+    }
+
+    pendingIceCandidatesRef.current.delete(socketId);
+
+    for (const candidate of candidates) {
+      await peer.addIceCandidate(new RTCIceCandidate(candidate));
+    }
+
+    console.debug("[voice] Applied queued ICE candidates.", socketId, candidates.length);
+  }, []);
 
   const startSpeakingDetector = useCallback(() => {
     if (!localStreamRef.current || !socket) {
@@ -247,23 +366,39 @@ export function useWorkspaceVoice({
   }, [currentUser.userId, socket, workspaceId]);
 
   const joinVoice = useCallback(async () => {
-    if (!socket || isVoiceJoined || isJoiningVoice) {
+    if (!socket || isJoiningVoice || localStreamRef.current) {
       return;
     }
 
     setIsJoiningVoice(true);
+    setConnectionStatus("requesting-microphone");
     setVoiceError(null);
 
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Microphone capture is not supported in this browser.");
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
       });
 
+      console.debug(
+        "[voice] Local microphone stream captured.",
+        stream.getAudioTracks().map((track) => ({
+          enabled: track.enabled,
+          id: track.id,
+          label: track.label,
+          muted: track.muted,
+          readyState: track.readyState,
+        })),
+      );
       localStreamRef.current = stream;
       stream.getAudioTracks().forEach((track) => {
         track.enabled = !isSelfMutedRef.current;
       });
 
+      setConnectionStatus("connecting");
       socket.emit("voice:join", {
         workspaceId,
       });
@@ -271,14 +406,13 @@ export function useWorkspaceVoice({
       startSpeakingDetector();
       setIsVoiceJoined(true);
     } catch (error) {
-      setVoiceError(
-        error instanceof Error ? error.message : "Unable to access your microphone.",
-      );
+      setVoiceError(getMicrophoneErrorMessage(error));
       cleanupVoice();
+      setConnectionStatus("failed");
     } finally {
       setIsJoiningVoice(false);
     }
-  }, [cleanupVoice, isJoiningVoice, isVoiceJoined, socket, startSpeakingDetector, workspaceId]);
+  }, [cleanupVoice, isJoiningVoice, socket, startSpeakingDetector, workspaceId]);
 
   const leaveVoice = useCallback(() => {
     if (socket) {
@@ -307,6 +441,11 @@ export function useWorkspaceVoice({
 
     function handleParticipants(nextParticipants: WorkspaceVoiceParticipant[]) {
       const currentSocketId = activeSocket.id ?? "self";
+
+      if (isVoiceJoined) {
+        console.debug("[voice] Participant snapshot received.", nextParticipants);
+        setConnectionStatus("connected");
+      }
 
       setParticipants((currentParticipants) => {
         const existingSelf = currentParticipants.find(
@@ -346,6 +485,7 @@ export function useWorkspaceVoice({
     }
 
     function handleParticipantJoined(participant: WorkspaceVoiceParticipant) {
+      console.debug("[voice] Participant joined voice.", participant);
       setParticipants((currentParticipants) => {
         const remainingParticipants = currentParticipants.filter(
           (currentParticipant) =>
@@ -358,8 +498,11 @@ export function useWorkspaceVoice({
     }
 
     function handleParticipantLeft(payload: { socketId: string; userId: string }) {
+      console.debug("[voice] Participant left voice.", payload);
       peerConnectionsRef.current.get(payload.socketId)?.close();
       peerConnectionsRef.current.delete(payload.socketId);
+      pendingIceCandidatesRef.current.delete(payload.socketId);
+      remoteStreamsRef.current.delete(payload.socketId);
       setParticipants((currentParticipants) =>
         currentParticipants.filter((participant) => participant.socketId !== payload.socketId),
       );
@@ -368,10 +511,21 @@ export function useWorkspaceVoice({
       );
     }
 
-    async function handleSignal(payload: {
-      sourceSocketId: string;
-      signal: VoiceSignal;
-    }) {
+    async function handleSignal(payload: VoiceSignalPayload) {
+      if (payload.sourceUser) {
+        setParticipants((currentParticipants) => {
+          if (
+            currentParticipants.some(
+              (participant) => participant.socketId === payload.sourceSocketId,
+            )
+          ) {
+            return currentParticipants;
+          }
+
+          return [...currentParticipants, payload.sourceUser as WorkspaceVoiceParticipant];
+        });
+      }
+
       const peer = ensurePeerConnection(payload.sourceSocketId);
 
       if (!peer || !socket) {
@@ -379,9 +533,12 @@ export function useWorkspaceVoice({
       }
 
       if (payload.signal.type === "offer") {
+        console.debug("[voice] Received offer.", payload.sourceSocketId);
         await peer.setRemoteDescription(new RTCSessionDescription(payload.signal.sdp));
+        await flushPendingIceCandidates(payload.sourceSocketId);
         const answer = await peer.createAnswer();
         await peer.setLocalDescription(answer);
+        console.debug("[voice] Sending answer.", payload.sourceSocketId);
         activeSocket.emit("voice:signal", {
           workspaceId,
           targetSocketId: payload.sourceSocketId,
@@ -394,11 +551,28 @@ export function useWorkspaceVoice({
       }
 
       if (payload.signal.type === "answer") {
+        console.debug("[voice] Received answer.", payload.sourceSocketId);
         await peer.setRemoteDescription(new RTCSessionDescription(payload.signal.sdp));
+        await flushPendingIceCandidates(payload.sourceSocketId);
         return;
       }
 
       if (payload.signal.type === "ice-candidate") {
+        if (!peer.remoteDescription) {
+          const queuedCandidates =
+            pendingIceCandidatesRef.current.get(payload.sourceSocketId) ?? [];
+          pendingIceCandidatesRef.current.set(payload.sourceSocketId, [
+            ...queuedCandidates,
+            payload.signal.candidate,
+          ]);
+          console.debug(
+            "[voice] Queued ICE candidate until remote description is ready.",
+            payload.sourceSocketId,
+          );
+          return;
+        }
+
+        console.debug("[voice] Applying ICE candidate.", payload.sourceSocketId);
         await peer.addIceCandidate(new RTCIceCandidate(payload.signal.candidate));
       }
     }
@@ -415,6 +589,7 @@ export function useWorkspaceVoice({
 
     function handleVoiceError(payload: { message: string }) {
       setVoiceError(payload.message);
+      setConnectionStatus("failed");
     }
 
     function handleModeratedLeave(payload: { reason: string }) {
@@ -422,7 +597,7 @@ export function useWorkspaceVoice({
       leaveVoice();
     }
 
-    function handleSignalEvent(payload: { sourceSocketId: string; signal: VoiceSignal }) {
+    function handleSignalEvent(payload: VoiceSignalPayload) {
       void handleSignal(payload);
     }
 
@@ -452,6 +627,7 @@ export function useWorkspaceVoice({
     currentUser.userId,
     currentUser.username,
     ensurePeerConnection,
+    flushPendingIceCandidates,
     isVoiceJoined,
     leaveVoice,
     socket,
@@ -480,6 +656,7 @@ export function useWorkspaceVoice({
     }
 
     const handleReconnect = () => {
+      setConnectionStatus("connecting");
       socket.emit("voice:join", {
         workspaceId,
       });
@@ -492,17 +669,37 @@ export function useWorkspaceVoice({
     };
   }, [isVoiceJoined, socket, workspaceId]);
 
+  const retryVoiceConnection = useCallback(async () => {
+    if (!socket) {
+      setVoiceError("Realtime connection is not ready yet.");
+      setConnectionStatus("failed");
+      return;
+    }
+
+    if (isVoiceJoined) {
+      socket.emit("voice:leave", {
+        workspaceId,
+      });
+    }
+
+    cleanupVoice();
+    setIsVoiceJoined(false);
+    await joinVoice();
+  }, [cleanupVoice, isVoiceJoined, joinVoice, socket, workspaceId]);
+
   return {
     isVoiceJoined,
     isJoiningVoice,
     isSelfMuted,
     isListeningForSound,
     localAudioLevel,
+    connectionStatus,
     voiceError,
     participants,
     remoteAudio,
     joinVoice,
     leaveVoice,
+    retryVoiceConnection,
     toggleSelfMuted: () => setIsSelfMuted((currentValue) => !currentValue),
     clearVoiceError: () => setVoiceError(null),
   };
