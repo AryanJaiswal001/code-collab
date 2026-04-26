@@ -399,12 +399,12 @@ export function useWorkspaceVoice({
       });
 
       setConnectionStatus("connecting");
+      setIsVoiceJoined(true);
       socket.emit("voice:join", {
         workspaceId,
       });
 
       startSpeakingDetector();
-      setIsVoiceJoined(true);
     } catch (error) {
       setVoiceError(getMicrophoneErrorMessage(error));
       cleanupVoice();
@@ -438,13 +438,16 @@ export function useWorkspaceVoice({
     }
 
     const activeSocket = socket;
+    const shouldInitiateOffer = (targetSocketId: string) =>
+      Boolean(activeSocket.id) && (activeSocket.id as string) < targetSocketId;
 
     function handleParticipants(nextParticipants: WorkspaceVoiceParticipant[]) {
       const currentSocketId = activeSocket.id ?? "self";
+      const hasLocalVoice = Boolean(localStreamRef.current);
 
-      if (isVoiceJoined) {
+      if (hasLocalVoice) {
         console.debug("[voice] Participant snapshot received.", nextParticipants);
-        setConnectionStatus("connected");
+        setConnectionStatus(nextParticipants.length ? "connecting" : "connected");
       }
 
       setParticipants((currentParticipants) => {
@@ -452,7 +455,7 @@ export function useWorkspaceVoice({
           (participant) => participant.userId === currentUser.userId,
         );
 
-        const selfParticipant: WorkspaceVoiceParticipant | null = isVoiceJoined
+        const selfParticipant: WorkspaceVoiceParticipant | null = hasLocalVoice
           ? {
               userId: currentUser.userId,
               name: currentUser.name,
@@ -473,9 +476,13 @@ export function useWorkspaceVoice({
         return selfParticipant ? [selfParticipant, ...mergedOthers] : mergedOthers;
       });
 
-      if (isVoiceJoined) {
+      if (hasLocalVoice) {
         nextParticipants.forEach((participant) => {
           if (participant.userId === currentUser.userId) {
+            return;
+          }
+
+          if (!shouldInitiateOffer(participant.socketId)) {
             return;
           }
 
@@ -495,6 +502,14 @@ export function useWorkspaceVoice({
 
         return [...remainingParticipants, participant];
       });
+
+      if (
+        localStreamRef.current &&
+        participant.userId !== currentUser.userId &&
+        shouldInitiateOffer(participant.socketId)
+      ) {
+        void createOfferForParticipant(participant.socketId);
+      }
     }
 
     function handleParticipantLeft(payload: { socketId: string; userId: string }) {
