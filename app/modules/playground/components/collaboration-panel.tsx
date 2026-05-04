@@ -269,8 +269,8 @@ export function CollaborationPanel({
         }
         className="min-h-0 flex-1"
       >
-        <div className="border-b border-white/10 px-3 py-3">
-          <TabsList className="grid w-full grid-cols-5 gap-1 rounded-xl bg-white/5 p-1">
+        <div className="border-b border-white px-3 py-3">
+          <TabsList className="grid w-full grid-cols-5 gap-1 rounded-xl bg-black p-1">
             <TabsTrigger
               value="chat"
               className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs"
