@@ -36,12 +36,13 @@ type MRPanelProps = {
   currentUser?: MergeRequestUser;
   onPendingCountChange?: (count: number) => void;
   onMergeRequestCreated?: () => void;
+  onMergeRequestAccepted?: (mergeRequest: MergeRequest) => void;
   className?: string;
 };
 
 const filterLabels: Record<MergeRequestFilter, string> = {
   pending: "Pending",
-  approved: "Approved",
+  accepted: "Accepted",
   rejected: "Rejected",
   all: "All",
 };
@@ -62,6 +63,7 @@ export function MRPanel({
   currentUser,
   onPendingCountChange,
   onMergeRequestCreated,
+  onMergeRequestAccepted,
   className,
 }: MRPanelProps) {
   const params = useParams() as { id?: string };
@@ -148,8 +150,18 @@ export function MRPanel({
 
   async function handleStatusChange(
     mergeRequest: MergeRequest,
-    status: Extract<MergeRequestStatus, "approved" | "rejected">,
+    status: Extract<MergeRequestStatus, "accepted" | "rejected">,
   ) {
+    const actionLabel = status === "accepted" ? "accept" : "reject";
+
+    if (
+      !window.confirm(
+        `Are you sure you want to ${actionLabel} "${mergeRequest.title}"?`,
+      )
+    ) {
+      return;
+    }
+
     setUpdatingMergeRequestId(mergeRequest.id);
     const previousMergeRequests = mergeRequests;
 
@@ -176,10 +188,14 @@ export function MRPanel({
         ),
       );
       toast.success(
-        status === "approved"
-          ? "Approved successfully"
-          : "Rejected successfully",
+        status === "accepted"
+          ? "Merge request accepted"
+          : "Merge request rejected",
       );
+
+      if (status === "accepted") {
+        onMergeRequestAccepted?.(updatedMergeRequest);
+      }
     } catch (updateError) {
       setMergeRequests(previousMergeRequests);
       toast.error(
@@ -273,14 +289,10 @@ export function MRPanel({
         <MRDetail
           mergeRequest={selectedMergeRequest}
           isUpdating={updatingMergeRequestId === selectedMergeRequest.id}
-          canReview={
-            selectedMergeRequest.authorProfile.role === "OWNER"
-              ? currentUser?.role === "OWNER"
-              : currentUser?.role === "ADMIN" || currentUser?.role === "OWNER"
-          }
+          canReview={canReviewMergeRequests}
           onBack={() => setSelectedMergeRequestId(null)}
-          onApprove={(mergeRequest) =>
-            void handleStatusChange(mergeRequest, "approved")
+          onAccept={(mergeRequest) =>
+            void handleStatusChange(mergeRequest, "accepted")
           }
           onReject={(mergeRequest) =>
             void handleStatusChange(mergeRequest, "rejected")
@@ -293,9 +305,17 @@ export function MRPanel({
             selectedMergeRequestId={selectedMergeRequestId}
             isLoading={isLoading || (isActive && !hasFetched)}
             error={error}
+            canReview={canReviewMergeRequests}
+            updatingMergeRequestId={updatingMergeRequestId}
             onRetry={() => void loadMergeRequests()}
             onSelectMergeRequest={(mergeRequest) =>
               setSelectedMergeRequestId(mergeRequest.id)
+            }
+            onAccept={(mergeRequest) =>
+              void handleStatusChange(mergeRequest, "accepted")
+            }
+            onReject={(mergeRequest) =>
+              void handleStatusChange(mergeRequest, "rejected")
             }
           />
         </ScrollArea>

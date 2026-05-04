@@ -11,8 +11,12 @@ type MRListProps = {
   selectedMergeRequestId: string | null;
   isLoading: boolean;
   error: string | null;
+  canReview: boolean;
+  updatingMergeRequestId: string | null;
   onRetry: () => void;
   onSelectMergeRequest: (mergeRequest: MergeRequest) => void;
+  onAccept: (mergeRequest: MergeRequest) => void;
+  onReject: (mergeRequest: MergeRequest) => void;
 };
 
 function MRListSkeleton() {
@@ -42,8 +46,12 @@ export function MRList({
   selectedMergeRequestId,
   isLoading,
   error,
+  canReview,
+  updatingMergeRequestId,
   onRetry,
   onSelectMergeRequest,
+  onAccept,
+  onReject,
 }: MRListProps) {
   if (isLoading) {
     return <MRListSkeleton />;
@@ -100,10 +108,13 @@ export function MRList({
           key={mergeRequest.id}
           mergeRequest={mergeRequest}
           isSelected={selectedMergeRequestId === mergeRequest.id}
+          canReview={canReview}
+          isUpdating={updatingMergeRequestId === mergeRequest.id}
           onSelect={onSelectMergeRequest}
+          onAccept={onAccept}
+          onReject={onReject}
         />
       ))}
     </div>
   );
 }
-

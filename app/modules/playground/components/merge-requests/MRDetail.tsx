@@ -3,6 +3,7 @@
 import { formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft,
+  Clock3,
   FileCode2,
   GitPullRequest,
 } from "lucide-react";
@@ -19,7 +20,7 @@ type MRDetailProps = {
   isUpdating: boolean;
   canReview: boolean;
   onBack: () => void;
-  onApprove: (mergeRequest: MergeRequest) => void;
+  onAccept: (mergeRequest: MergeRequest) => void;
   onReject: (mergeRequest: MergeRequest) => void;
 };
 
@@ -50,6 +51,18 @@ function getDiffLineClassName(line: string) {
   }
 
   return "text-white/70";
+}
+
+function getReviewActionLabel(status: MergeRequest["status"]) {
+  if (status === "accepted") {
+    return "Accepted";
+  }
+
+  if (status === "rejected") {
+    return "Rejected";
+  }
+
+  return null;
 }
 
 function DiffBlock({ change }: { change: MergeRequestChange }) {
@@ -91,9 +104,11 @@ export function MRDetail({
   isUpdating,
   canReview,
   onBack,
-  onApprove,
+  onAccept,
   onReject,
 }: MRDetailProps) {
+  const reviewActionLabel = getReviewActionLabel(mergeRequest.status);
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center gap-2 border-b border-white/10 px-3 py-3">
@@ -117,6 +132,20 @@ export function MRDetail({
       <ScrollArea className="ide-scrollbar min-h-0 flex-1">
         <div className="space-y-4 px-4 py-4">
           <MRStatusBadge status={mergeRequest.status} prominent />
+
+          {reviewActionLabel &&
+          mergeRequest.reviewerProfile &&
+          mergeRequest.reviewedAt ? (
+            <div className="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2 text-sm text-white/70">
+              {reviewActionLabel} by{" "}
+              <span className="font-medium text-white">
+                {mergeRequest.reviewerProfile.name}
+              </span>{" "}
+              {formatDistanceToNow(new Date(mergeRequest.reviewedAt), {
+                addSuffix: true,
+              })}
+            </div>
+          ) : null}
 
           <div className="space-y-3">
             <div className="flex items-start justify-between gap-3">
@@ -185,9 +214,14 @@ export function MRDetail({
         <MRAdminActions
           mergeRequest={mergeRequest}
           isUpdating={isUpdating}
-          onApprove={onApprove}
+          onAccept={onAccept}
           onReject={onReject}
         />
+      ) : mergeRequest.status === "pending" ? (
+        <div className="flex shrink-0 items-center gap-2 border-t border-white/10 px-4 py-3 text-sm text-yellow-100">
+          <Clock3 className="h-4 w-4" />
+          Waiting for admin approval
+        </div>
       ) : null}
     </div>
   );

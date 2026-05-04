@@ -37,7 +37,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { CommsPanel } from "./CommsPanel";
 import { MergeRequestPanel } from "./merge-request-panel";
-import type { WorkspaceMergeRequestChange } from "./merge-request-panel";
+import type {
+  MergeRequest,
+  WorkspaceMergeRequestChange,
+} from "./merge-request-panel";
 
 type RemoteAudioState = {
   participant: WorkspaceVoiceParticipant;
@@ -92,6 +95,7 @@ type CollaborationPanelProps = {
   onToggleVoiceMute: (memberId: string, isVoiceMuted: boolean) => void;
   onPendingMergeRequestsCountChange?: (count: number) => void;
   onMergeRequestCreated?: () => void;
+  onMergeRequestAccepted?: (mergeRequest: MergeRequest) => void;
   className?: string;
 };
 
@@ -197,6 +201,7 @@ export function CollaborationPanel({
   onToggleVoiceMute,
   onPendingMergeRequestsCountChange,
   onMergeRequestCreated,
+  onMergeRequestAccepted,
   className,
 }: CollaborationPanelProps) {
   const presenceByUserId = new Map(presence.map((item) => [item.userId, item]));
@@ -864,6 +869,7 @@ export function CollaborationPanel({
             currentUser={currentUser}
             onPendingCountChange={onPendingMergeRequestsCountChange}
             onMergeRequestCreated={onMergeRequestCreated}
+            onMergeRequestAccepted={onMergeRequestAccepted}
           />
         </TabsContent>
       </Tabs>

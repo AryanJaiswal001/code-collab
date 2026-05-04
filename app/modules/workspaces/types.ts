@@ -30,7 +30,9 @@ export type WorkspaceActivityTypeValue =
   | "MEMBER_ROLE_CHANGED"
   | "MEMBER_REMOVED"
   | "INVITE_CREATED"
-  | "INVITE_ACCEPTED";
+  | "INVITE_ACCEPTED"
+  | "MERGE_REQUEST_ACCEPTED"
+  | "MERGE_REQUEST_REJECTED";
 
 export type WorkspaceActor = {
   userId: string;

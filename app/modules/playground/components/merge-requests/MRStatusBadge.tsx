@@ -21,14 +21,14 @@ const statusMeta: Record<
   }
 > = {
   pending: {
-    label: "Waiting for Admin Approval",
+    label: "Pending",
     compactLabel: "Pending",
     icon: Clock3,
     className: "border-yellow-400/35 bg-yellow-400/10 text-yellow-100",
   },
-  approved: {
-    label: "Approved",
-    compactLabel: "Approved",
+  accepted: {
+    label: "Accepted",
+    compactLabel: "Accepted",
     icon: CheckCircle2,
     className: "border-emerald-400/35 bg-emerald-400/10 text-emerald-100",
   },

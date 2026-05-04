@@ -62,6 +62,14 @@ function normalizeAuthor(value: unknown): MergeRequestAuthor {
   };
 }
 
+function normalizeOptionalAuthor(value: unknown) {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return normalizeAuthor(value);
+}
+
 function normalizeChange(value: unknown): MergeRequestChange | null {
   if (typeof value === "string") {
     const counts = countPatchLines(value);
@@ -119,8 +127,13 @@ function normalizeChanges(value: unknown): MergeRequestChange[] {
 }
 
 function normalizeStatus(value: unknown): MRStatus {
-  if (value === "APPROVED" || value === "approved") {
-    return "approved";
+  if (
+    value === "ACCEPTED" ||
+    value === "accepted" ||
+    value === "APPROVED" ||
+    value === "approved"
+  ) {
+    return "accepted";
   }
 
   if (value === "REJECTED" || value === "rejected") {
@@ -130,14 +143,15 @@ function normalizeStatus(value: unknown): MRStatus {
   return "pending";
 }
 
-function toApiStatus(status: Extract<MRStatus, "approved" | "rejected">) {
-  return status === "approved" ? "APPROVED" : "REJECTED";
+function toApiStatus(status: Extract<MRStatus, "accepted" | "rejected">) {
+  return status === "accepted" ? "ACCEPTED" : "REJECTED";
 }
 
 export function normalizeMergeRequest(value: unknown): MergeRequest {
   const raw = (isRecord(value) ? value : {}) as RawMergeRequest;
 
   const author = normalizeAuthor(raw.author);
+  const reviewer = normalizeOptionalAuthor(raw.reviewedBy ?? raw.reviewer);
 
   return {
     id: getString(raw.id),
@@ -147,10 +161,12 @@ export function normalizeMergeRequest(value: unknown): MergeRequest {
     status: normalizeStatus(raw.status),
     changes: normalizeChanges(raw.changes),
     authorProfile: author,
+    reviewerProfile: reviewer,
     workspaceId:
       getString(raw.workspaceId) ||
       getString(raw.playgroundId) ||
       getString(raw.workspaceLink),
+    reviewedAt: getNullableString(raw.reviewedAt),
     createdAt: getString(raw.createdAt, new Date().toISOString()),
     updatedAt: getString(raw.updatedAt, new Date().toISOString()),
   };
@@ -227,7 +243,7 @@ export async function createMergeRequest(
 export async function updateMergeRequestStatus(
   workspaceId: string,
   mrId: string,
-  status: Extract<MRStatus, "approved" | "rejected">,
+  status: Extract<MRStatus, "accepted" | "rejected">,
 ) {
   const response = await fetch(
     `/api/workspaces/${workspaceId}/merge-requests`,

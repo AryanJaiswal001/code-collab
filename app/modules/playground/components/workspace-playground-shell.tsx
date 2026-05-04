@@ -30,7 +30,10 @@ import type {
   GitHubRepositorySummary,
 } from "@/app/modules/github/types";
 import { CollaborationPanel } from "./collaboration-panel";
-import type { WorkspaceMergeRequestChange } from "./merge-request-panel";
+import type {
+  MergeRequest,
+  WorkspaceMergeRequestChange,
+} from "./merge-request-panel";
 import { useWorkspaceVoice } from "../hooks/useWorkspaceVoice";
 import { useFileExplorer } from "../hooks/useFileExplorer";
 import { getTemplateFileContentMap } from "../lib";
@@ -1417,6 +1420,13 @@ export function WorkspacePlaygroundShell({
     }
   };
 
+  const handleMergeRequestAccepted = (mergeRequest: MergeRequest) => {
+    setPendingWorkspaceUpdate({
+      summary: `${mergeRequest.title} was accepted. Load the latest workspace update.`,
+    });
+    setMergeRequestRefreshKey((currentKey) => currentKey + 1);
+  };
+
   const explorerContent = (
     <PlaygroundExplorer
       tree={tree}
@@ -1523,6 +1533,7 @@ export function WorkspacePlaygroundShell({
       onMergeRequestCreated={() =>
         setMergeRequestRefreshKey((currentKey) => currentKey + 1)
       }
+      onMergeRequestAccepted={handleMergeRequestAccepted}
       className={
         layout.isCompactViewport ? "border-l-0 border-t border-white/10" : ""
       }

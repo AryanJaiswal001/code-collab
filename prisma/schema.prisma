@@ -25,6 +25,7 @@ model User {
   playgroundEntriesUpdated PlaygroundEntry[]     @relation("PlaygroundEntryUpdatedBy")
   assignedPlaygroundEntries PlaygroundEntry[]    @relation("PlaygroundEntryAssignee")
   mergeRequests            MergeRequest[]      @relation("MergeRequestsAuthor")
+  mergeRequestsReviewed    MergeRequest[]      @relation("MergeRequestsReviewer")
 }
 
 model Account {
@@ -106,11 +107,13 @@ enum PlaygroundActivityType {
   MEMBER_REMOVED
   INVITE_CREATED
   INVITE_ACCEPTED
+  MERGE_REQUEST_ACCEPTED
+  MERGE_REQUEST_REJECTED
 }
 
 enum MergeRequestStatus {
   PENDING
-  APPROVED
+  ACCEPTED @map("APPROVED")
   REJECTED
 }
 
@@ -230,14 +233,16 @@ model MergeRequest {
   id           String             @id @default(auto()) @map("_id") @db.ObjectId
   playgroundId String             @db.ObjectId
   authorId     String             @db.ObjectId
+  reviewedById String?            @db.ObjectId
   title        String
   description  String?
   status       MergeRequestStatus @default(PENDING)
   changes      Json
+  reviewedAt   DateTime?
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
   playground   Playground         @relation(fields: [playgroundId], references: [id], onDelete: Cascade)
   author       User               @relation("MergeRequestsAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  reviewedBy   User?              @relation("MergeRequestsReviewer", fields: [reviewedById], references: [id])
 }
-

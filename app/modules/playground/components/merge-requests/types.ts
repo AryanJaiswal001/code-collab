@@ -1,6 +1,6 @@
 "use client";
 
-export type MRStatus = "pending" | "approved" | "rejected";
+export type MRStatus = "pending" | "accepted" | "rejected";
 export type MergeRequestStatus = MRStatus;
 
 export type MergeRequestAuthor = {
@@ -29,7 +29,9 @@ export type MergeRequest = {
   status: MRStatus;
   changes: MergeRequestChange[];
   authorProfile: MergeRequestAuthor;
+  reviewerProfile: MergeRequestAuthor | null;
   workspaceId: string;
+  reviewedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

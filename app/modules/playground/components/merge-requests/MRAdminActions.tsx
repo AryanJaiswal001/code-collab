@@ -7,14 +7,14 @@ import type { MergeRequest } from "./types";
 type MRAdminActionsProps = {
   mergeRequest: MergeRequest;
   isUpdating: boolean;
-  onApprove: (mergeRequest: MergeRequest) => void;
+  onAccept: (mergeRequest: MergeRequest) => void;
   onReject: (mergeRequest: MergeRequest) => void;
 };
 
 export function MRAdminActions({
   mergeRequest,
   isUpdating,
-  onApprove,
+  onAccept,
   onReject,
 }: MRAdminActionsProps) {
   if (mergeRequest.status !== "pending") {
@@ -28,14 +28,14 @@ export function MRAdminActions({
         variant="outline"
         className="rounded-lg border-emerald-400/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/15 hover:text-white"
         disabled={isUpdating}
-        onClick={() => onApprove(mergeRequest)}
+        onClick={() => onAccept(mergeRequest)}
       >
         {isUpdating ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <CheckCircle2 className="mr-2 h-4 w-4" />
         )}
-        Approve
+        Accept
       </Button>
       <Button
         type="button"
@@ -54,4 +54,3 @@ export function MRAdminActions({
     </div>
   );
 }
-
