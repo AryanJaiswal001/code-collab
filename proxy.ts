@@ -1,11 +1,22 @@
 import { NextResponse } from "next/server";
+import type { NextFetchEvent, NextRequest } from "next/server";
 import NextAuth from "next-auth";
 import { authConfig } from "./auth.config";
 
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_ROUTES = new Set(["/", "/home", "/auth/sign-in", "/auth/error"]);
+const PUBLIC_ROUTES = new Set([
+  "/",
+  "/home",
+  "/auth/sign-in",
+  "/auth/error",
+  "/privacy",
+  "/signin",
+  "/terms",
+]);
 const PUBLIC_PREFIXES = ["/playground"];
+const STATIC_FILE_PATTERN =
+  /\.(?:avif|css|gif|ico|jpeg|jpg|js|map|png|svg|txt|webp|xml)$/i;
 
 function applyCrossOriginIsolationHeaders(response: NextResponse) {
   response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
@@ -20,6 +31,42 @@ function isPublicPath(pathname: string) {
     PUBLIC_PREFIXES.some(
       (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
     )
+  );
+}
+
+function isStaticPath(pathname: string) {
+  return (
+    pathname.startsWith("/_next/") ||
+    pathname === "/favicon.ico" ||
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml" ||
+    STATIC_FILE_PATTERN.test(pathname)
+  );
+}
+
+function isVercelRequest(request: NextRequest) {
+  return (request.headers.get("user-agent") ?? "")
+    .toLowerCase()
+    .includes("vercel");
+}
+
+function isSafePublicRequest(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const isReadRequest =
+    request.method === "GET" ||
+    request.method === "HEAD" ||
+    request.method === "OPTIONS";
+
+  if (!isReadRequest) {
+    return false;
+  }
+
+  return (
+    pathname === "/" ||
+    isPublicPath(pathname) ||
+    isStaticPath(pathname) ||
+    (isVercelRequest(request) &&
+      (pathname === "/" || isPublicPath(pathname) || isStaticPath(pathname)))
   );
 }
 
@@ -55,7 +102,7 @@ function getCanonicalAuthOrigin() {
   }
 }
 
-export default auth((req) => {
+const authProxy = auth((req, _event: NextFetchEvent) => {
   const { pathname } = req.nextUrl;
   const canonicalOrigin = getCanonicalAuthOrigin();
 
@@ -100,8 +147,16 @@ export default auth((req) => {
   return applyCrossOriginIsolationHeaders(NextResponse.next());
 });
 
+export default function proxy(req: NextRequest, event: NextFetchEvent) {
+  if (isSafePublicRequest(req)) {
+    return applyCrossOriginIsolationHeaders(NextResponse.next());
+  }
+
+  return authProxy(req, event);
+}
+
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.png|.*\\.svg).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\..*).*)",
   ],
 };
