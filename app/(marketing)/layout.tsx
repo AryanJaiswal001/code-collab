@@ -12,7 +12,9 @@ export default function HomeLayout({ children }: { children: ReactNode }) {
             <div className="bg-blue-600 p-2 rounded-lg">
               <Code2 className="h-5 w-5 text-white" />
             </div>
-            <span className="font-bold text-xl tracking-tight">Code Collab</span>
+            <span className="font-bold text-xl tracking-tight">
+              Code Collab
+            </span>
           </Link>
           <nav className="flex items-center">
             <ThemeToggle />
