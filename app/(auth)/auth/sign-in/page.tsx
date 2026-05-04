@@ -61,7 +61,7 @@ function SignInPageContent() {
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-2">
         <Button asChild variant="ghost" size="sm" className="w-fit px-0">
-          <Link href="/home#home">
+          <Link href="/">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to home
           </Link>

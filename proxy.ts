@@ -75,9 +75,9 @@ export default auth((req) => {
       ? requestedCallbackUrl
       : "/dashboard";
 
-  if (pathname === "/") {
+  if (pathname === "/home") {
     return applyCrossOriginIsolationHeaders(
-      NextResponse.redirect(new URL("/home#home", req.url)),
+      NextResponse.redirect(new URL("/", req.url)),
     );
   }
 

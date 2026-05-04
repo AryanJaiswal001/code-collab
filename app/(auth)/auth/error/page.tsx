@@ -99,7 +99,7 @@ export default async function AuthErrorPage({
             </Link>
           </Button>
           <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href="/home#home">
+            <Link href="/">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to home
             </Link>
