@@ -44,12 +44,6 @@ function isStaticPath(pathname: string) {
   );
 }
 
-function isVercelRequest(request: NextRequest) {
-  return (request.headers.get("user-agent") ?? "")
-    .toLowerCase()
-    .includes("vercel");
-}
-
 function isSafePublicRequest(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isReadRequest =
@@ -61,13 +55,7 @@ function isSafePublicRequest(request: NextRequest) {
     return false;
   }
 
-  return (
-    pathname === "/" ||
-    isPublicPath(pathname) ||
-    isStaticPath(pathname) ||
-    (isVercelRequest(request) &&
-      (pathname === "/" || isPublicPath(pathname) || isStaticPath(pathname)))
-  );
+  return pathname === "/" || isPublicPath(pathname) || isStaticPath(pathname);
 }
 
 function getCanonicalAuthOrigin() {
