@@ -37,8 +37,8 @@ This repo is now split into two runtime surfaces:
 
 Recommended values:
 
-- `AUTH_URL=https://app.your-domain.com`
-- `REALTIME_SERVER_URL=https://realtime.your-domain.com`
+- `AUTH_URL=https://code-collab-virid.vercel.app`
+- `REALTIME_SERVER_URL=https://code-collab-tc22.onrender.com`
 
 ### Render
 
@@ -48,7 +48,7 @@ Recommended values:
 
 Recommended values:
 
-- `APP_ORIGIN=https://app.your-domain.com`
+- `APP_ORIGIN=https://code-collab-virid.vercel.app`
 - `PORT=10000`
 
 ## Vercel Setup
@@ -56,8 +56,8 @@ Recommended values:
 1. Create a Vercel project pointing at this repo.
 2. Set the production environment variables listed above.
 3. Add your production OAuth callback URLs:
-   - `https://app.your-domain.com/api/auth/callback/google`
-   - `https://app.your-domain.com/api/auth/callback/github`
+   - `https://code-collab-virid.vercel.app/api/auth/callback/google`
+   - `https://code-collab-virid.vercel.app/api/auth/callback/github`
 4. Deploy the app.
 
 ## Render Setup

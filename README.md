@@ -1,6 +1,6 @@
 # Deployed link (For easy running of the project without local setup):
 
-https://code-collab-dusky-xi.vercel.app/
+https://code-collab-virid.vercel.app/
 
 # Code Collab
 
