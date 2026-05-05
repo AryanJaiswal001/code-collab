@@ -66,7 +66,6 @@ Recommended values:
 2. Use the repo root as the service root, not `realtime-server`.
 3. Set:
    - Build Command: `npm install`
-   
 4. Add the Render environment variables listed above.
 5. Deploy the service.
 6. Confirm `GET /health` returns `{ "ok": true }`.
