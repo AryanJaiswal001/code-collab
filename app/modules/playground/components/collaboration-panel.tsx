@@ -269,8 +269,8 @@ export function CollaborationPanel({
         }
         className="min-h-0 flex-1"
       >
-        <div className="border-b border-white px-3 py-3 overflow-x-auto scrollbar-hidden">
-          <TabsList className="grid w-full grid-cols-5 gap-1 rounded-xl bg-black p-1">
+        <div className="border-b border-white px-3 py-3 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <TabsList className="inline-flex w-max min-w-max gap-1 rounded-xl bg-black p-1">
             <TabsTrigger
               value="chat"
               className="min-w-0 gap-1 px-2 text-[11px] sm:text-xs"
@@ -586,7 +586,9 @@ export function CollaborationPanel({
                     variant="outline"
                     className="h-8 border-white/10 bg-white/5 text-white hover:bg-white/10"
                     onClick={onToggleSelfMuted}
-                    aria-label={isSelfMuted ? "Unmute microphone" : "Mute microphone"}
+                    aria-label={
+                      isSelfMuted ? "Unmute microphone" : "Mute microphone"
+                    }
                   >
                     {isSelfMuted ? (
                       <MicOff className="h-4 w-4 text-red-400 mr-1.5" />
