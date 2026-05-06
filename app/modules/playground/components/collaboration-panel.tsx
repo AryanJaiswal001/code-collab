@@ -267,7 +267,7 @@ export function CollaborationPanel({
               | "merge-requests",
           )
         }
-        className="min-h-0 flex-1"
+        className="min-h-0 flex-1 flex-col"
       >
         <div className="border-b border-white px-3 py-3 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <TabsList className="inline-flex w-max min-w-max gap-1 rounded-xl bg-black p-1">
@@ -334,7 +334,7 @@ export function CollaborationPanel({
         </div>
         <TabsContent
           value="chat"
-          className="mt-0 flex h-full flex-col data-[state=inactive]:hidden"
+          className="mt-0 flex h-full min-h-0 flex-col data-[state=inactive]:hidden"
         >
           <CommsPanel
             currentUser={currentUser}
@@ -348,7 +348,7 @@ export function CollaborationPanel({
 
         <TabsContent
           value="members"
-          className="mt-0 flex h-full flex-col data-[state=inactive]:hidden"
+          className="mt-0 flex h-full min-h-0 flex-col data-[state=inactive]:hidden"
         >
           <ScrollArea className="ide-scrollbar min-h-0 flex-1 px-4 py-4">
             <div className="space-y-4">
@@ -822,7 +822,7 @@ export function CollaborationPanel({
 
         <TabsContent
           value="activity"
-          className="mt-0 flex h-full flex-col data-[state=inactive]:hidden"
+          className="mt-0 flex h-full min-h-0 flex-col data-[state=inactive]:hidden"
         >
           <ScrollArea className="ide-scrollbar min-h-0 flex-1 px-4 py-4">
             <div className="space-y-3">
@@ -861,7 +861,7 @@ export function CollaborationPanel({
         </TabsContent>
         <TabsContent
           value="merge-requests"
-          className="mt-0 flex h-full flex-col data-[state=inactive]:hidden"
+          className="mt-0 flex h-full min-h-0 flex-col data-[state=inactive]:hidden"
         >
           <MergeRequestPanel
             workspaceId={workspaceId}
