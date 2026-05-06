@@ -269,7 +269,7 @@ export function CollaborationPanel({
         }
         className="min-h-0 flex-1"
       >
-        <div className="border-b border-white px-3 py-3 overflow-x">
+        <div className="border-b border-white px-3 py-3 overflow-x-auto scrollbar-hidden">
           <TabsList className="grid w-full grid-cols-5 gap-1 rounded-xl bg-black p-1">
             <TabsTrigger
               value="chat"
