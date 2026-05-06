@@ -80,8 +80,10 @@ export const authConfig = {
     error: "/auth/error",
   },
   trustHost: true,
+  useSecureCookies: process.env.NODE_ENV === "production",
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
     redirect({ url, baseUrl }) {
