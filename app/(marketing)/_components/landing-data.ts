@@ -43,9 +43,9 @@ export const trustedBy = [
 
 export const floatingBadges = [
   { label: "Live cursors", x: "6%", y: "18%", delay: 0 },
-  { label: "2 approvals", x: "72%", y: "12%", delay: 0.2 },
-  { label: "CI passing", x: "3%", y: "68%", delay: 0.4 },
-  { label: "AI review ready", x: "67%", y: "74%", delay: 0.6 },
+  { label: "WebContainers boot", x: "72%", y: "12%", delay: 0.2 },
+  { label: "Voice sync", x: "3%", y: "68%", delay: 0.4 },
+  { label: "Monaco powered", x: "67%", y: "74%", delay: 0.6 },
 ];
 
 export const collaborators = [
@@ -63,69 +63,79 @@ export type FeatureCard = {
 
 export const collaborationCards: FeatureCard[] = [
   {
-    title: "Hackathon templates",
-    description: "Launch full-stack workspaces with branch rules, env hints, and starter tasks.",
+    title: "WebContainers Enabled",
+    description:
+      "Instantly boot Node.js environments directly in the browser—no local setup.",
     icon: Rocket,
-    metric: "40s setup",
+    metric: "0s local setup",
   },
   {
-    title: "AI code review",
-    description: "Context-aware suggestions highlight regressions before they become review churn.",
-    icon: Bot,
-    metric: "12 risks found",
+    title: "In-Browser IDE",
+    description:
+      "A powerful code editor built with Monaco, syntax highlighting, and an interactive file tree.",
+    icon: Code2,
+    metric: "100% familiar",
   },
   {
-    title: "Shared workspace",
-    description: "One live room for files, terminals, comments, voice, and merge decisions.",
+    title: "Voice & Presence",
+    description:
+      "Integrated voice session controls and member presence tracking powered by Socket.IO.",
     icon: Network,
-    metric: "5 active",
+    metric: "Live sync",
   },
   {
     title: "Live pair programming",
-    description: "Follow teammates, jump to cursors, and keep intent visible across the editor.",
+    description:
+      "Synchronized file editing, jump to teammates' cursors, and build together.",
     icon: UsersRound,
     metric: "24ms sync",
   },
   {
-    title: "Real-time sync",
-    description: "Presence, file diffs, terminal events, and comments move as one shared timeline.",
+    title: "30+ Framework Starters",
+    description:
+      "Launch Next.js, React, Vue, SvelteKit, Astro, and more with pre-configured templates.",
     icon: Zap,
-    metric: "99.9% events",
+    metric: "Instant boot",
   },
 ];
 
 export const templateCards = [
   {
     name: "Next.js template",
-    description: "App Router, auth, workspace shell, and deploy previews ready to remix.",
+    description:
+      "App Router, auth, workspace shell, and deploy previews ready to remix.",
     icon: Code2,
     accent: "from-cyan-400 to-blue-500",
     tags: ["Next 16", "RSC", "Tailwind"],
   },
   {
     name: "AI SaaS starter",
-    description: "Billing hooks, AI routes, usage telemetry, and model playground patterns.",
+    description:
+      "Billing hooks, AI routes, usage telemetry, and model playground patterns.",
     icon: Sparkles,
     accent: "from-violet-400 to-fuchsia-500",
     tags: ["AI SDK", "Stripe", "Queues"],
   },
   {
     name: "Hackathon boilerplate",
-    description: "Fast team onboarding, realtime rooms, project boards, and judging demos.",
+    description:
+      "Fast team onboarding, realtime rooms, project boards, and judging demos.",
     icon: Rocket,
     accent: "from-amber-300 to-rose-500",
     tags: ["Realtime", "Demo", "Teams"],
   },
   {
     name: "Portfolio starter",
-    description: "Polished showcase sections with MDX stories and animated code reveals.",
+    description:
+      "Polished showcase sections with MDX stories and animated code reveals.",
     icon: LayoutTemplate,
     accent: "from-emerald-300 to-teal-500",
     tags: ["MDX", "Motion", "SEO"],
   },
   {
     name: "Backend API starter",
-    description: "Typed routes, Prisma models, workers, and deploy-grade observability.",
+    description:
+      "Typed routes, Prisma models, workers, and deploy-grade observability.",
     icon: Workflow,
     accent: "from-sky-300 to-indigo-500",
     tags: ["Prisma", "Jobs", "OpenAPI"],
@@ -151,17 +161,37 @@ export const techIcons: TechIcon[] = [
 ];
 
 export const oldCodeLines = [
-  { no: 12, code: "export async function merge(projectId: string) {", kind: "muted" },
-  { no: 13, code: "  const branch = await getBranch(projectId)", kind: "neutral" },
+  {
+    no: 12,
+    code: "export async function merge(projectId: string) {",
+    kind: "muted",
+  },
+  {
+    no: 13,
+    code: "  const branch = await getBranch(projectId)",
+    kind: "neutral",
+  },
   { no: 14, code: "  await applyPatch(branch.head)", kind: "removed" },
   { no: 15, code: "  return createMergeCommit(branch)", kind: "removed" },
   { no: 16, code: "}", kind: "muted" },
 ];
 
 export const newCodeLines = [
-  { no: 12, code: "export async function merge(projectId: string) {", kind: "muted" },
-  { no: 13, code: "  const branch = await getBranch(projectId)", kind: "neutral" },
-  { no: 14, code: "  const preview = await createMergePreview(branch)", kind: "added" },
+  {
+    no: 12,
+    code: "export async function merge(projectId: string) {",
+    kind: "muted",
+  },
+  {
+    no: 13,
+    code: "  const branch = await getBranch(projectId)",
+    kind: "neutral",
+  },
+  {
+    no: 14,
+    code: "  const preview = await createMergePreview(branch)",
+    kind: "added",
+  },
   { no: 15, code: "  await requireApproval(preview.reviewers)", kind: "added" },
   { no: 16, code: "  return squashAndMerge(preview)", kind: "added" },
   { no: 17, code: "}", kind: "muted" },
