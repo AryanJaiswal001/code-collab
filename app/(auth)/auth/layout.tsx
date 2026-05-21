@@ -1,6 +1,4 @@
-import Image from "next/image";
-import signinImage from "./signin.svg";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { AuthVisualPanel } from "./_components/auth-visual-panel";
 
 export default function AuthLayout({
   children,
@@ -8,40 +6,18 @@ export default function AuthLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <main className="min-h-screen w-full grid lg:grid-cols-2 relative bg-zinc-100 dark:bg-zinc-950 transition-colors duration-300">
-      <div className="absolute top-4 right-4 sm:top-8 sm:right-8 z-50">
-        <ThemeToggle />
+    <main className="dark relative min-h-screen overflow-hidden bg-[#05070d] text-white">
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_12%,rgba(125,211,252,0.14),transparent_30%),radial-gradient(circle_at_14%_80%,rgba(167,139,250,0.12),transparent_32%),linear-gradient(180deg,#05070d_0%,#080b13_52%,#03050b_100%)]" />
+        <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-white/[0.045] to-transparent" />
       </div>
 
-      {/* Left side - Illustration */}
-      <div className="hidden lg:flex flex-col items-center justify-center p-10 lg:p-20">
-        <div className="w-full max-w-xl mx-auto flex flex-col items-center text-center">
-          <div className="mb-10 space-y-4">
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl text-zinc-900 dark:text-zinc-100 transition-colors">
-              Glad to have you back!
-            </h1>
-            <p className="text-lg text-zinc-600 dark:text-zinc-400 max-w-md mx-auto transition-colors">
-              Sign in to manage your workspace, seamlessly collaborate with your
-              team, and build great software.
-            </p>
-          </div>
+      <div className="relative z-10 grid min-h-screen lg:grid-cols-[minmax(0,1.08fr)_minmax(420px,0.92fr)]">
+        <AuthVisualPanel />
 
-          <div className="bg-white/50 dark:bg-white/5 p-8 rounded-3xl shadow-sm backdrop-blur-sm border border-zinc-200 dark:border-zinc-800 transition-all duration-300">
-            <Image
-              src={signinImage}
-              alt="Sign In Illustration"
-              width={889}
-              height={459}
-              className="w-full h-auto object-contain drop-shadow-md"
-              priority
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Right side - Form/Children */}
-      <div className="flex flex-col relative items-center justify-center p-6 sm:p-12 lg:p-20 w-full h-full">
-        <div className="w-full max-w-md">{children}</div>
+        <section className="order-1 flex min-h-screen items-center justify-center px-5 py-8 sm:px-8 lg:order-2 lg:px-10 lg:py-10">
+          <div className="w-full max-w-[430px]">{children}</div>
+        </section>
       </div>
     </main>
   );
