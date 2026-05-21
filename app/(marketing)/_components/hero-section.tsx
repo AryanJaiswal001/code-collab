@@ -119,7 +119,11 @@ export function HeroSection() {
               variant="outline"
               className="h-12 rounded-full border-white/12 bg-white/[0.04] px-6 text-sm font-semibold text-white hover:border-white/20 hover:bg-white/10"
             >
-              <Link href={landingLinks.github} target="_blank" rel="noreferrer">
+              <Link
+                href={landingLinks.github}
+                target="https://github.com/AryanJaiswal001/code-collab"
+                rel="noreferrer"
+              >
                 <GitFork className="size-4" />
                 View GitHub
               </Link>

@@ -140,6 +140,14 @@ export const templateCards = [
     accent: "from-sky-300 to-indigo-500",
     tags: ["Prisma", "Jobs", "OpenAPI"],
   },
+  {
+    name: "Github repo template",
+    description:
+      "A template to kickstart your next open source library with CI and docs.",
+    icon: GitFork,
+    accent: "from-zinc-400 to-gray-600",
+    tags: ["Library", "CI", "Docs"],
+  }
 ];
 
 export type TechIcon = {
